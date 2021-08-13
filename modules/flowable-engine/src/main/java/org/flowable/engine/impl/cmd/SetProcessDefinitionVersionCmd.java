@@ -60,6 +60,11 @@ public class SetProcessDefinitionVersionCmd implements Command<Void>, Serializab
     private final String processInstanceId;
     private final Integer processDefinitionVersion;
 
+    /**
+     * 流程实例的id和 流程版本
+     * @param processInstanceId
+     * @param processDefinitionVersion
+     */
     public SetProcessDefinitionVersionCmd(String processInstanceId, Integer processDefinitionVersion) {
         if (processInstanceId == null || processInstanceId.length() < 1) {
             throw new FlowableIllegalArgumentException("The process instance id is mandatory, but '" + processInstanceId + "' has been provided.");
@@ -88,7 +93,27 @@ public class SetProcessDefinitionVersionCmd implements Command<Void>, Serializab
         }
 
         DeploymentManager deploymentCache = CommandContextUtil.getProcessEngineConfiguration(commandContext).getDeploymentManager();
+        //根据流程实例 找到该流程实例的流程定义
         ProcessDefinition currentProcessDefinition = deploymentCache.findDeployedProcessDefinitionById(processInstance.getProcessDefinitionId());
+
+        /**
+         *
+         *一个流程定义是一个ProcessDefinition对象，在金刚中，更新同一个流程，会重新创建一个WorkflowDefinition对象，这个对象中有一个sourceId属性，
+         * sourceId属性的值等于该流程创建时第一个workflowDefinition对象的 oid，然后更新流程的时候会重新生成后一个workflowDefinition，同一个流程的所有的 workflowDefinition的sourceId都是相同的
+         * 然后根据workflowDefinition生成xml文件时  <process id="process_233521904" name="wnq_workflowTest01流程优化002" isExecutable="true"></process>
+         * 这个id就是process_sourceid，因此相同流程 生成的xml文件的 process节点的id是相同的.
+         * 在 org.flowable.engine.impl.bpmn.parser.handler.ProcessParseHandler#transformProcess(org.flowable.engine.impl.bpmn.parser.BpmnParse, org.flowable.bpmn.model.Process) 中对process
+         * 节点进行处理，在处理过程中我们看到 process的id作为  currentProcessDefinition.setKey(process.getId()); key。
+         *ProcessDefinitionEntity对象对应的mybatis文件是ProcessDefinition.xml，从这个文件中我们可以看到 ProcessDefinition对应 的是ACT_RE_PROCDEF表。
+         *
+         * 也就是说： 流程部署xml
+         *  //部署流程
+         *         Deployment deployment = repositoryService.createDeployment().addString(workflowName + ".bpmn20.xml", bpmnSource).deploy();
+         *         会首先在 act_re_deploymnet表中生成一个Deployment对象，然后 在部署的过程中会解析xml创建后一个ProcessDefinition对象保存到act_re_procdef表
+         *
+         *    在这里findDeployedProcessDefinitionByKeyAndVersionAndTenantId 会根究act_re_procdef表中的key 和流程的版本信息获取到 ProcessDefinition定义。
+         *
+         */
 
         ProcessDefinition newProcessDefinition = deploymentCache
                 .findDeployedProcessDefinitionByKeyAndVersionAndTenantId(currentProcessDefinition.getKey(), processDefinitionVersion, currentProcessDefinition.getTenantId());
