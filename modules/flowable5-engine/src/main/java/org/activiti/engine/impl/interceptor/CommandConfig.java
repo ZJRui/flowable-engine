@@ -22,7 +22,7 @@ import org.flowable.common.engine.impl.cfg.TransactionPropagation;
  * @author Marcus Klimstra (CGI)
  */
 public class CommandConfig {
-
+     //https://daimajiaoliu.com/daima/60fb5e60149c803 配置类的相关代码CommandConfig.java，contextReusePossible表示命令上下文是否可重用，propagation与spring事务传播相关
     private boolean contextReusePossible;
     private TransactionPropagation propagation;
 
