@@ -97,6 +97,10 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
 
     @Override
     public void initDefaultCommandConfig() {
+        /**
+        *
+       * 配置类的相关代码CommandConfig.java，contextReusePossible表示命令上下文是否可重用，propagation与spring事务传播相关，defaultCommandConfig 使用了默认命令配置类，而schemaCommandConfig则使用transactionNotSupported方法创建的命令配置类：
+        */
         if (defaultCommandConfig == null) {
             defaultCommandConfig = new CommandConfig().setContextReusePossible(true);
         }
