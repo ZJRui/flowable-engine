@@ -60,6 +60,10 @@ public class CommandContext {
 
         // The intention of this method is that all resources are closed properly, even if exceptions occur
         // in close or flush methods of the sessions or the transaction context.
+        /**
+         * //该方法的目的是，即使发生异常，也会正确关闭所有资源
+         * //在会话或事务上下文的close或flush方法中
+         */
 
         try {
             try {

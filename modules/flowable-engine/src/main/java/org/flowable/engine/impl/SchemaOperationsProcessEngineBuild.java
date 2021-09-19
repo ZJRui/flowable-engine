@@ -29,6 +29,30 @@ public class SchemaOperationsProcessEngineBuild implements Command<Void> {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaOperationsProcessEngineBuild.class);
 
+    /**
+     *
+     * org.flowable.engine.impl.SchemaOperationsProcessEngineBuild.execute(org.flowable.common.engine.impl.interceptor.CommandContext)
+     * org.flowable.engine.impl.interceptor.CommandInvoker$1.run()
+     * org.flowable.engine.impl.interceptor.CommandInvoker.executeOperation(java.lang.Runnable)
+     * org.flowable.engine.impl.interceptor.CommandInvoker.executeOperations(org.flowable.common.engine.impl.interceptor.CommandContext)
+     * org.flowable.engine.impl.interceptor.CommandInvoker.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.engine.impl.interceptor.BpmnOverrideContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.common.engine.impl.interceptor.TransactionContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.common.engine.impl.interceptor.CommandContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.idm.spring.SpringTransactionInterceptor$1.doInTransaction(org.springframework.transaction.TransactionStatus)
+     * org.flowable.idm.spring.SpringTransactionInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.common.engine.impl.interceptor.LogInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.common.engine.impl.cfg.CommandExecutorImpl.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+     * org.flowable.engine.impl.ProcessEngineImpl.<init>(org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl)
+     * org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl.buildProcessEngine()
+     * org.flowable.spring.SpringProcessEngineConfiguration.buildProcessEngine()
+     * org.flowable.spring.ProcessEngineFactoryBean.getObject()
+     * org.flowable.spring.ProcessEngineFactoryBean.getObject()
+     *
+     *
+     * @param commandContext
+     * @return
+     */
     @Override
     public Void execute(CommandContext commandContext) {
         

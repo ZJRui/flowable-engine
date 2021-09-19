@@ -47,6 +47,13 @@ public class SpringTransactionInterceptor extends AbstractCommandInterceptor {
         // The reason for this is that the transactionTemplate try-catches exceptions and marks it as rollback.
         // Which will break nested service calls that go through the same stack of interceptors.
 
+        /**
+         * //如果事务是必需的(其他两个选项总是需要通过transactionTemplate)，
+         * //当事务已经被激活时，transactionTemplate不被使用。
+         * //这样做的原因是transactionTemplate尝试捕获异常并将其标记为回滚。
+         * //这将打破嵌套的服务调用，通过相同的堆栈拦截器。
+         */
+
         int transactionPropagation = getPropagation(config);
         if (transactionPropagation == TransactionTemplate.PROPAGATION_REQUIRED && TransactionSynchronizationManager.isActualTransactionActive()) {
             return next.execute(config, command, commandExecutor);

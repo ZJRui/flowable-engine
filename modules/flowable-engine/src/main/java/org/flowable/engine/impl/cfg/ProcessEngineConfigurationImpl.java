@@ -1208,6 +1208,14 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         // for subclassing
     }
 
+    /**
+     *
+     *                               initProcessSchemaManager
+     * ProcessEngineConfigurationImpl.initSchemaManager()  (org.flowable.engine.impl.cfg)
+     *     ProcessEngineConfigurationImpl.init()  (org.flowable.engine.impl.cfg)
+     *         ProcessEngineConfigurationImpl.buildProcessEngine()  (org.flowable.engine.impl.cfg)
+     *
+     */
     protected void initProcessSchemaManager() {
         if (this.schemaManager == null) {
             this.schemaManager = new ProcessDbSchemaManager();
@@ -1256,6 +1264,12 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         }
     }
 
+    /**
+     *
+     * ProcessEngineConfigurationImpl.init()  (org.flowable.engine.impl.cfg)
+     *     ProcessEngineConfigurationImpl.buildProcessEngine()  (org.flowable.engine.impl.cfg)
+     *
+     */
     public void initSchemaManagementCommand() {
         if (schemaManagementCmd == null) {
             if (usingRelationalDatabase && databaseSchemaUpdate != null) {

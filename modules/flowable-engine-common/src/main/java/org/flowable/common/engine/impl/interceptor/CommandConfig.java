@@ -18,7 +18,10 @@ import org.flowable.common.engine.impl.cfg.TransactionPropagation;
  * Configuration settings for the command interceptor chain.
  * 
  * Instances of this class are immutable, and thus thread- and share-safe.
- * 
+ *
+ * *命令拦截器链的配置。
+ * ＊
+ * *该类的实例是不可变的，因此线程和共享安全。
  * @author Marcus Klimstra (CGI)
  */
 public class CommandConfig {

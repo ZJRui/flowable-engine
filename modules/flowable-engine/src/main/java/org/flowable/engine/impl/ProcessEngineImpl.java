@@ -78,6 +78,39 @@ public class ProcessEngineImpl implements ProcessEngine {
         this.sessionFactories = processEngineConfiguration.getSessionFactories();
         this.transactionContextFactory = processEngineConfiguration.getTransactionContextFactory();
 
+        /**
+         * org.flowable.common.engine.impl.db.AbstractSqlScriptBasedDbSchemaManager.getDbSqlSession()
+         * org.flowable.common.engine.impl.db.AbstractSqlScriptBasedDbSchemaManager.isTablePresent(java.lang.String)
+         * org.flowable.common.engine.impl.db.ServiceSqlScriptBasedDbSchemaManager.isUpdateNeeded()
+         * org.flowable.common.engine.impl.db.ServiceSqlScriptBasedDbSchemaManager.dbSchemaUpdate()
+         * org.flowable.engine.impl.db.ProcessDbSchemaManager.dbSchemaUpdate()
+         * org.flowable.engine.impl.db.ProcessDbSchemaManager.performSchemaOperationsProcessEngineBuild()
+         * org.flowable.engine.impl.SchemaOperationsProcessEngineBuild.execute(org.flowable.common.engine.impl.interceptor.CommandContext)
+         * org.flowable.engine.impl.interceptor.CommandInvoker$1.run()
+         * org.flowable.engine.impl.interceptor.CommandInvoker.executeOperation(java.lang.Runnable)
+         * org.flowable.engine.impl.interceptor.CommandInvoker.executeOperations(org.flowable.common.engine.impl.interceptor.CommandContext)
+         * org.flowable.engine.impl.interceptor.CommandInvoker.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.engine.impl.interceptor.BpmnOverrideContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.common.engine.impl.interceptor.TransactionContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.common.engine.impl.interceptor.CommandContextInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.idm.spring.SpringTransactionInterceptor$1.doInTransaction(org.springframework.transaction.TransactionStatus)
+         * org.flowable.idm.spring.SpringTransactionInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.common.engine.impl.interceptor.LogInterceptor.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.common.engine.impl.cfg.CommandExecutorImpl.execute(org.flowable.common.engine.impl.interceptor.CommandConfig, org.flowable.common.engine.impl.interceptor.Command)
+         * org.flowable.engine.impl.ProcessEngineImpl.<init>(org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl)
+         * org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl.buildProcessEngine()
+         * org.flowable.spring.SpringProcessEngineConfiguration.buildProcessEngine()
+         * org.flowable.spring.ProcessEngineFactoryBean.getObject()
+         * org.flowable.spring.ProcessEngineFactoryBean.getObject()
+         * java.util.concurrent.ThreadPoolExecutor$Worker.run()
+         *
+         *
+         * 问题： schemaManagementCmd 什么时候被设置，又是如何设置的？
+         * 1，在org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl#initSchemaManagementCommand()方法中被设置为SchemaOperationsProcessEngineBuild
+         *
+         * 问题：
+         *
+         */
         if (processEngineConfiguration.getSchemaManagementCmd() != null) {
             commandExecutor.execute(processEngineConfiguration.getSchemaCommandConfig(), processEngineConfiguration.getSchemaManagementCmd());
         }
