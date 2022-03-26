@@ -32,11 +32,18 @@ public class EventDefinitionCollectionResourceTest extends BaseSpringRestTestCas
     public void testGetEventDefinitions() throws Exception {
 
         try {
-            EventDeployment firstDeployment = repositoryService.createDeployment().name("Deployment 1").addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/simpleEvent.event").deploy();
+            EventDeployment firstDeployment = repositoryService.createDeployment()
+                    .name("Deployment 1")
+                    .parentDeploymentId("parent1")
+                    .addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/simpleEvent.event")
+                    .deploy();
 
             EventDefinition firstEventDef = repositoryService.createEventDefinitionQuery().eventDefinitionKey("myEvent").deploymentId(firstDeployment.getId()).singleResult();
             
-            EventDeployment secondDeployment = repositoryService.createDeployment().name("Deployment 2").addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/simpleEvent.event")
+            EventDeployment secondDeployment = repositoryService.createDeployment()
+                    .name("Deployment 2")
+                    .parentDeploymentId("parent2")
+                    .addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/simpleEvent.event")
                     .addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/orderEvent.event").deploy();
             
             EventDeployment thirdDeployment = repositoryService.createDeployment().name("Deployment 3").addClasspathResource("org/flowable/eventregistry/rest/service/api/repository/simpleEvent2.event")
@@ -64,12 +71,20 @@ public class EventDefinitionCollectionResourceTest extends BaseSpringRestTestCas
             url = baseUrl + "?nameLike=" + encode("My order%");
             assertResultsPresentInDataResponse(url, orderEventDef.getId(), orderEventDef2.getId());
 
+            // Test nameLikeIgnorecase filtering
+            url = baseUrl + "?nameLikeIgnoreCase=" + encode("my order%");
+            assertResultsPresentInDataResponse(url, orderEventDef.getId(), orderEventDef2.getId());
+
             // Test key filtering
             url = baseUrl + "?key=myOrderEvent";
             assertResultsPresentInDataResponse(url, orderEventDef.getId(), orderEventDef2.getId());
 
             // Test keyLike filtering
             url = baseUrl + "?keyLike=" + encode("myOrder%");
+            assertResultsPresentInDataResponse(url, orderEventDef.getId(), orderEventDef2.getId());
+
+            // Test keyLikeIgnoreCase filtering
+            url = baseUrl + "?keyLikeIgnoreCase=" + encode("myorder%");
             assertResultsPresentInDataResponse(url, orderEventDef.getId(), orderEventDef2.getId());
 
             // Test resourceName filtering
@@ -93,6 +108,14 @@ public class EventDefinitionCollectionResourceTest extends BaseSpringRestTestCas
             // Test deploymentId
             url = baseUrl + "?deploymentId=" + secondDeployment.getId();
             assertResultsPresentInDataResponse(url, myEventDef.getId(), orderEventDef.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent2";
+            assertResultsPresentInDataResponse(url, myEventDef.getId(), orderEventDef.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent1";
+            assertResultsPresentInDataResponse(url, firstEventDef.getId());
 
         } finally {
             // Always cleanup any created deployments, even if the test failed

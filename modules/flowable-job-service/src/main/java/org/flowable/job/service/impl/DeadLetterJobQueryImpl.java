@@ -14,6 +14,7 @@
 package org.flowable.job.service.impl;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -38,14 +39,17 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
     
     protected String id;
     protected String processInstanceId;
+    protected boolean withoutProcessInstanceId;
     protected String executionId;
     protected String handlerType;
+    protected Collection<String> handlerTypes;
     protected String processDefinitionId;
     protected String category;
     protected String categoryLike;
     protected String elementId;
     protected String elementName;
     protected String scopeId;
+    protected boolean withoutScopeId;
     protected String subScopeId;
     protected String scopeType;
     protected boolean withoutScopeType;
@@ -93,6 +97,12 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
             throw new FlowableIllegalArgumentException("Provided process instance id is null");
         }
         this.processInstanceId = processInstanceId;
+        return this;
+    }
+    
+    @Override
+    public DeadLetterJobQueryImpl withoutProcessInstanceId() {
+        this.withoutProcessInstanceId = true;
         return this;
     }
 
@@ -147,6 +157,12 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
             throw new FlowableIllegalArgumentException("Provided scope id is null");
         }
         this.scopeId = scopeId;
+        return this;
+    }
+    
+    @Override
+    public DeadLetterJobQueryImpl withoutScopeId() {
+        this.withoutScopeId = true;
         return this;
     }
     
@@ -237,6 +253,15 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
             throw new FlowableIllegalArgumentException("Provided handlerType is null");
         }
         this.handlerType = handlerType;
+        return this;
+    }
+
+    @Override
+    public DeadLetterJobQuery handlerTypes(Collection<String> handlerTypes) {
+        if (handlerTypes == null) {
+            throw new FlowableIllegalArgumentException("Provided handlerTypes are null");
+        }
+        this.handlerTypes = handlerTypes;
         return this;
     }
 
@@ -399,6 +424,10 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
     public String getProcessInstanceId() {
         return processInstanceId;
     }
+    
+    public boolean isWithoutProcessInstanceId() {
+        return withoutProcessInstanceId;
+    }
 
     public String getExecutionId() {
         return executionId;
@@ -462,6 +491,10 @@ public class DeadLetterJobQueryImpl extends AbstractQuery<DeadLetterJobQuery, Jo
     
     public String getScopeId() {
         return scopeId;
+    }
+    
+    public boolean isWithoutScopeId() {
+        return withoutScopeId;
     }
 
     public String getSubScopeId() {

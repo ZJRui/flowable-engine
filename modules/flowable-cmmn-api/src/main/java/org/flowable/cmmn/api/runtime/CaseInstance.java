@@ -23,6 +23,7 @@ public interface CaseInstance {
     String getId();
     String getParentId();
     String getBusinessKey();
+    String getBusinessStatus();
     String getName();
     String getCaseDefinitionId();
     String getCaseDefinitionKey();
@@ -46,4 +47,6 @@ public interface CaseInstance {
      */
     Map<String, Object> getCaseVariables();
 
+    /** Sets an optional localized name for the case. */
+    void setLocalizedName(String localizedName);
 }

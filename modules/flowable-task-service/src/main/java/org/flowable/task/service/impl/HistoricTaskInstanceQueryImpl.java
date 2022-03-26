@@ -32,6 +32,7 @@ import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.task.api.history.HistoricTaskInstanceQuery;
 import org.flowable.task.service.TaskServiceConfiguration;
 import org.flowable.task.service.impl.persistence.entity.HistoricTaskInstanceEntity;
+import org.flowable.task.service.impl.util.TaskVariableUtils;
 import org.flowable.variable.service.VariableServiceConfiguration;
 import org.flowable.variable.service.impl.AbstractVariableQueryImpl;
 import org.flowable.variable.service.impl.QueryVariableValue;
@@ -65,6 +66,7 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
     protected Collection<String> cmmnDeploymentIds;
     protected String processInstanceId;
     protected Collection<String> processInstanceIds;
+    protected boolean withoutProcessInstanceId;
     protected String processInstanceBusinessKey;
     protected String processInstanceBusinessKeyLike;
     protected String processInstanceBusinessKeyLikeIgnoreCase;
@@ -73,6 +75,7 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
     protected String subScopeId;
     protected String scopeType;
     protected String scopeDefinitionId;
+    protected boolean withoutScopeId;
     protected String propagatedStageInstanceId;
     protected String processInstanceIdWithChildren;
     protected String caseInstanceIdWithChildren;
@@ -140,6 +143,7 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
     protected boolean withLocalizationFallback;
     protected boolean includeTaskLocalVariables;
     protected boolean includeProcessVariables;
+    protected boolean includeCaseVariables;
     protected boolean includeIdentityLinks;
     protected List<HistoricTaskInstanceQueryImpl> orQueryObjects = new ArrayList<>();
     protected HistoricTaskInstanceQueryImpl currentOrQueryObject;
@@ -183,14 +187,16 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
         List<HistoricTaskInstance> tasks = null;
 
         if (taskServiceConfiguration.getHistoricTaskQueryInterceptor() != null) {
-            taskServiceConfiguration.getHistoricTaskQueryInterceptor().beforeHistoricTaskQueryExecute(this);
+            taskServiceConfiguration.getHistoricTaskQueryInterceptor()
+                    .beforeHistoricTaskQueryExecute(this);
         }
 
-        if (includeTaskLocalVariables || includeProcessVariables || includeIdentityLinks) {
-            tasks = taskServiceConfiguration.getHistoricTaskInstanceEntityManager().findHistoricTaskInstancesAndRelatedEntitiesByQueryCriteria(this);
+        if (includeTaskLocalVariables || includeProcessVariables || includeIdentityLinks || includeCaseVariables) {
+            tasks = taskServiceConfiguration.getHistoricTaskInstanceEntityManager()
+                    .findHistoricTaskInstancesAndRelatedEntitiesByQueryCriteria(this);
 
             if (taskId != null) {
-                if (includeProcessVariables) {
+                if (includeProcessVariables ||includeCaseVariables) {
                     addCachedVariableForQueryById(commandContext, tasks, false);
                 } else if (includeTaskLocalVariables) {
                     addCachedVariableForQueryById(commandContext, tasks, true);
@@ -226,25 +232,29 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
                         if (task.getId().equals(cachedVariableEntity.getTaskId())) {
                             ((HistoricTaskInstanceEntity) task).getQueryVariables().add(cachedVariableEntity);
                         }
-                    } else {
-                        if (task.getProcessInstanceId().equals(cachedVariableEntity.getProcessInstanceId())) {
-                            ((HistoricTaskInstanceEntity) task).getQueryVariables().add(cachedVariableEntity);
-                        }
+                    } else if (TaskVariableUtils.doesVariableBelongToTask(cachedVariableEntity, task)) {
+                        ((HistoricTaskInstanceEntity) task).getQueryVariables().add(cachedVariableEntity);
                     }
                 }
-
             }
         }
     }
 
     @Override
     public void enhanceCachedValue(HistoricTaskInstanceEntity task) {
-        if (includeProcessVariables) {
-            task.getQueryVariables().addAll(variableServiceConfiguration.getHistoricVariableInstanceEntityManager()
-                    .findHistoricalVariableInstancesByProcessInstanceId(task.getProcessInstanceId()));
+
+        if (includeProcessVariables && task.getProcessInstanceId() != null) {
+            task.getQueryVariables()
+                    .addAll(variableServiceConfiguration.getHistoricVariableInstanceEntityManager()
+                            .findHistoricalVariableInstancesByProcessInstanceId(task.getProcessInstanceId()));
+        } else if (includeCaseVariables && TaskVariableUtils.isCaseRelated(task)) {
+            task.getQueryVariables()
+                    .addAll((variableServiceConfiguration.getHistoricVariableInstanceEntityManager()
+                            .findHistoricalVariableInstancesByScopeIdAndScopeType(task.getScopeId(), task.getScopeType())));
         } else if (includeTaskLocalVariables) {
-            task.getQueryVariables().addAll(variableServiceConfiguration.getHistoricVariableInstanceEntityManager()
-                    .findHistoricalVariableInstancesByTaskId(task.getId()));
+            task.getQueryVariables()
+                    .addAll(variableServiceConfiguration.getHistoricVariableInstanceEntityManager()
+                            .findHistoricalVariableInstancesByTaskId(task.getId()));
         }
     }
 
@@ -276,6 +286,16 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
             this.currentOrQueryObject.processInstanceIds = processInstanceIds;
         } else {
             this.processInstanceIds = processInstanceIds;
+        }
+        return this;
+    }
+    
+    @Override
+    public HistoricTaskInstanceQueryImpl withoutProcessInstanceId() {
+        if (inOrStatement) {
+            currentOrQueryObject.withoutProcessInstanceId = true;
+        } else {
+            this.withoutProcessInstanceId = true;
         }
         return this;
     }
@@ -452,6 +472,16 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
             currentOrQueryObject.scopeDefinitionId = scopeDefinitionId;
         } else {
             this.scopeDefinitionId = scopeDefinitionId;
+        }
+        return this;
+    }
+    
+    @Override
+    public HistoricTaskInstanceQueryImpl withoutScopeId() {
+        if (inOrStatement) {
+            currentOrQueryObject.withoutScopeId = true;
+        } else {
+            this.withoutScopeId = true;
         }
         return this;
     }
@@ -1142,51 +1172,182 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
     @Override
     public HistoricTaskInstanceQuery processVariableValueLessThanOrEqual(String name, Object value) {
         if (inOrStatement) {
-            currentOrQueryObject.variableValueLessThanOrEqual(name, value, false);
+            currentOrQueryObject.variableValueLessThanOrEqual(name, value, ScopeTypes.BPMN);
             return this;
         } else {
-            return variableValueLessThanOrEqual(name, value, false);
+            return variableValueLessThanOrEqual(name, value, ScopeTypes.BPMN);
         }
     }
 
     @Override
     public HistoricTaskInstanceQuery processVariableValueLike(String name, String value) {
         if (inOrStatement) {
-            currentOrQueryObject.variableValueLike(name, value, false);
+            currentOrQueryObject.variableValueLike(name, value, ScopeTypes.BPMN);
             return this;
         } else {
-            return variableValueLike(name, value, false);
+            return variableValueLike(name, value, ScopeTypes.BPMN);
         }
     }
 
     @Override
     public HistoricTaskInstanceQuery processVariableValueLikeIgnoreCase(String name, String value) {
         if (inOrStatement) {
-            currentOrQueryObject.variableValueLikeIgnoreCase(name, value, false);
+            currentOrQueryObject.variableValueLikeIgnoreCase(name, value, ScopeTypes.BPMN);
             return this;
         } else {
-            return variableValueLikeIgnoreCase(name, value, false);
+            return variableValueLikeIgnoreCase(name, value, ScopeTypes.BPMN);
         }
     }
 
     @Override
     public HistoricTaskInstanceQuery processVariableExists(String name) {
         if (inOrStatement) {
-            currentOrQueryObject.variableExists(name, false);
+            currentOrQueryObject.variableExists(name, ScopeTypes.BPMN);
             return this;
         } else {
-            return variableExists(name, false);
+            return variableExists(name, ScopeTypes.BPMN);
         }
     }
 
     @Override
     public HistoricTaskInstanceQuery processVariableNotExists(String name) {
         if (inOrStatement) {
-            currentOrQueryObject.variableNotExists(name, false);
+            currentOrQueryObject.variableNotExists(name, ScopeTypes.BPMN);
             return this;
         } else {
-            return variableNotExists(name, false);
+            return variableNotExists(name, ScopeTypes.BPMN);
         }
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueEquals(String variableName, Object variableValue) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueEquals(variableName, variableValue, ScopeTypes.CMMN);
+        } else {
+            this.variableValueEquals(variableName, variableValue, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueEquals(Object variableValue) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueEquals(variableValue, ScopeTypes.CMMN);
+        } else {
+            variableValueEquals(variableValue, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueEqualsIgnoreCase(String name, String value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueEqualsIgnoreCase(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueEqualsIgnoreCase(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueNotEquals(String variableName, Object variableValue) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueNotEquals(variableName, variableValue, ScopeTypes.CMMN);
+        } else {
+            this.variableValueNotEquals(variableName, variableValue, ScopeTypes.CMMN);
+            ;
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueNotEqualsIgnoreCase(String name, String value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueNotEqualsIgnoreCase(name, ScopeTypes.CMMN);
+        } else {
+            this.variableValueNotEqualsIgnoreCase(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueGreaterThan(String name, Object value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueGreaterThan(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueGreaterThan(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueGreaterThanOrEqual(String name, Object value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueGreaterThanOrEqual(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueGreaterThanOrEqual(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueLessThan(String name, Object value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueLessThan(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueLessThan(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueLessThanOrEqual(String name, Object value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueLessThanOrEqual(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueLessThanOrEqual(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueLike(String name, String value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueLike(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueLike(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableValueLikeIgnoreCase(String name, String value) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableValueLikeIgnoreCase(name, value, ScopeTypes.CMMN);
+        } else {
+            this.variableValueLikeIgnoreCase(name, value, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableExists(String name) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableExists(name, ScopeTypes.CMMN);
+        } else {
+            this.variableExists(name, ScopeTypes.CMMN);
+        }
+        return this;
+    }
+
+    @Override
+    public HistoricTaskInstanceQuery caseVariableNotExists(String name) {
+        if (inOrStatement) {
+            currentOrQueryObject.variableNotExists(name, ScopeTypes.CMMN);
+        } else {
+            this.variableNotExists(name, ScopeTypes.CMMN);
+        }
+        return this;
     }
 
     @Override
@@ -1579,6 +1740,12 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
     }
 
     @Override
+    public HistoricTaskInstanceQuery includeCaseVariables() {
+        this.includeCaseVariables = true;
+        return this;
+    }
+
+    @Override
     public HistoricTaskInstanceQuery limitTaskVariables(Integer taskVariablesLimit) {
         return this;
     }
@@ -1802,6 +1969,10 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
         return processInstanceIds;
     }
 
+    public boolean isWithoutProcessInstanceId() {
+        return withoutProcessInstanceId;
+    }
+
     public String getProcessInstanceBusinessKey() {
         return processInstanceBusinessKey;
     }
@@ -1812,6 +1983,10 @@ public class HistoricTaskInstanceQueryImpl extends AbstractVariableQueryImpl<His
 
     public String getScopeId() {
         return scopeId;
+    }
+    
+    public boolean isWithoutScopeId() {
+        return withoutScopeId;
     }
 
     public String getSubScopeId() {

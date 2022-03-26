@@ -28,6 +28,7 @@ import org.flowable.cmmn.api.runtime.PlanItemInstanceQuery;
 import org.flowable.cmmn.api.runtime.PlanItemInstanceTransitionBuilder;
 import org.flowable.cmmn.api.runtime.SignalEventListenerInstanceQuery;
 import org.flowable.cmmn.api.runtime.UserEventListenerInstanceQuery;
+import org.flowable.cmmn.api.runtime.VariableInstanceQuery;
 import org.flowable.cmmn.engine.CmmnEngineConfiguration;
 import org.flowable.cmmn.engine.impl.cmd.AddIdentityLinkForCaseInstanceCmd;
 import org.flowable.cmmn.engine.impl.cmd.ChangePlanItemStateCmd;
@@ -59,6 +60,7 @@ import org.flowable.cmmn.engine.impl.cmd.RemoveLocalVariablesCmd;
 import org.flowable.cmmn.engine.impl.cmd.RemoveVariableCmd;
 import org.flowable.cmmn.engine.impl.cmd.RemoveVariablesCmd;
 import org.flowable.cmmn.engine.impl.cmd.SetCaseInstanceBusinessKeyCmd;
+import org.flowable.cmmn.engine.impl.cmd.SetCaseInstanceBusinessStatusCmd;
 import org.flowable.cmmn.engine.impl.cmd.SetCaseInstanceNameCmd;
 import org.flowable.cmmn.engine.impl.cmd.SetLocalVariableCmd;
 import org.flowable.cmmn.engine.impl.cmd.SetLocalVariablesCmd;
@@ -132,7 +134,7 @@ public class CmmnRuntimeServiceImpl extends CommonEngineServiceImpl<CmmnEngineCo
 
     @Override
     public void completeStagePlanItemInstance(String planItemInstanceId, boolean force) {
-        commandExecutor.execute(new CompleteStagePlanItemInstanceCmd(planItemInstanceId, true));
+        commandExecutor.execute(new CompleteStagePlanItemInstanceCmd(planItemInstanceId, force));
     }
 
     @Override
@@ -259,6 +261,11 @@ public class CmmnRuntimeServiceImpl extends CommonEngineServiceImpl<CmmnEngineCo
     public void removeLocalVariables(String planItemInstanceId, Collection<String> variableNames) {
         commandExecutor.execute(new RemoveLocalVariablesCmd(planItemInstanceId, variableNames));
     }
+    
+    @Override
+    public VariableInstanceQuery createVariableInstanceQuery() {
+        return new CmmnVariableInstanceQueryImpl(commandExecutor, configuration);
+    }
 
     @Override
     public void setCaseInstanceName(String caseInstanceId, String caseName) {
@@ -358,6 +365,11 @@ public class CmmnRuntimeServiceImpl extends CommonEngineServiceImpl<CmmnEngineCo
     @Override
     public void updateBusinessKey(String caseInstanceId, String businessKey) {
         commandExecutor.execute(new SetCaseInstanceBusinessKeyCmd(caseInstanceId, businessKey));
+    }
+    
+    @Override
+    public void updateBusinessStatus(String caseInstanceId, String businessStatus) {
+        commandExecutor.execute(new SetCaseInstanceBusinessStatusCmd(caseInstanceId, businessStatus));
     }
 
     public void changePlanItemState(ChangePlanItemStateBuilderImpl changePlanItemStateBuilder) {

@@ -14,6 +14,8 @@
 package org.flowable.engine;
 
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -98,6 +100,7 @@ public abstract class ProcessEngineConfiguration extends AbstractEngineConfigura
     protected boolean useTLS;
     protected String mailServerDefaultFrom = "flowable@localhost";
     protected String mailServerForceTo;
+    protected Charset mailServerDefaultCharset;
     protected String mailSessionJndi;
     protected Map<String, MailServerInfo> mailServers = new HashMap<>();
     protected Map<String, String> mailSessionsJndi = new HashMap<>();
@@ -152,7 +155,9 @@ public abstract class ProcessEngineConfiguration extends AbstractEngineConfigura
     // History Cleanup
     protected boolean enableHistoryCleaning = false;
     protected String historyCleaningTimeCycleConfig = "0 0 1 * * ?";
-    protected int cleanInstancesEndedAfterNumberOfDays = 365;
+    protected Duration cleanInstancesEndedAfter = Duration.ofDays(365);
+    protected int cleanInstancesBatchSize = 100;
+    protected boolean cleanInstancesSequentially = false;
     protected HistoryCleaningManager historyCleaningManager;
 
 
@@ -288,6 +293,15 @@ public abstract class ProcessEngineConfiguration extends AbstractEngineConfigura
 
     public ProcessEngineConfiguration setMailServerPort(int mailServerPort) {
         this.mailServerPort = mailServerPort;
+        return this;
+    }
+
+    public Charset getMailServerDefaultCharset() {
+        return mailServerDefaultCharset;
+    }
+
+    public ProcessEngineConfiguration setMailServerDefaultCharset(Charset mailServerDefaultCharset) {
+        this.mailServerDefaultCharset = mailServerDefaultCharset;
         return this;
     }
 
@@ -805,12 +819,46 @@ public abstract class ProcessEngineConfiguration extends AbstractEngineConfigura
         return this;
     }
 
+    /**
+     * @deprecated use {@link #getCleanInstancesEndedAfter()} instead
+     */
+    @Deprecated
     public int getCleanInstancesEndedAfterNumberOfDays() {
-        return cleanInstancesEndedAfterNumberOfDays;
+        return (int) cleanInstancesEndedAfter.toDays();
     }
 
+    /**
+     * @deprecated use {@link #setCleanInstancesEndedAfter(Duration)} instead
+     */
+    @Deprecated
     public ProcessEngineConfiguration setCleanInstancesEndedAfterNumberOfDays(int cleanInstancesEndedAfterNumberOfDays) {
-        this.cleanInstancesEndedAfterNumberOfDays = cleanInstancesEndedAfterNumberOfDays;
+        return setCleanInstancesEndedAfter(Duration.ofDays(cleanInstancesEndedAfterNumberOfDays));
+    }
+
+    public Duration getCleanInstancesEndedAfter() {
+        return cleanInstancesEndedAfter;
+    }
+
+    public ProcessEngineConfiguration setCleanInstancesEndedAfter(Duration cleanInstancesEndedAfter) {
+        this.cleanInstancesEndedAfter = cleanInstancesEndedAfter;
+        return this;
+    }
+
+    public int getCleanInstancesBatchSize() {
+        return cleanInstancesBatchSize;
+    }
+
+    public ProcessEngineConfiguration setCleanInstancesBatchSize(int cleanInstancesBatchSize) {
+        this.cleanInstancesBatchSize = cleanInstancesBatchSize;
+        return this;
+    }
+
+    public boolean isCleanInstancesSequentially() {
+        return cleanInstancesSequentially;
+    }
+
+    public ProcessEngineConfiguration setCleanInstancesSequentially(boolean cleanInstancesSequentially) {
+        this.cleanInstancesSequentially = cleanInstancesSequentially;
         return this;
     }
 

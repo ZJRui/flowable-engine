@@ -17,9 +17,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.common.engine.impl.interceptor.EngineConfigurationConstants;
+import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.impl.jobexecutor.AsyncSendEventJobHandler;
+import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.impl.test.JobTestHelper;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
@@ -55,6 +59,8 @@ public class SendEventTaskTest extends FlowableEventRegistryBpmnTestCase {
         getEventRepositoryService().createEventModelBuilder()
             .key("myEvent")
             .resourceName("myEvent.event")
+            .header("headerProperty1", EventPayloadTypes.STRING)
+            .header("headerProperty2", EventPayloadTypes.STRING)
             .payload("eventProperty", EventPayloadTypes.STRING)
             .deploy();
         
@@ -142,7 +148,45 @@ public class SendEventTaskTest extends FlowableEventRegistryBpmnTestCase {
                         + "   eventProperty: 'test'"
                         + " }");
     }
-    
+
+    @Test
+    @Deployment
+    public void testParallelMultiInstanceSendEvent() {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("process");
+        taskService.complete(taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult().getId());
+
+        assertThat(managementService.createJobQuery().list()).hasSize(3);
+        JobTestHelper.waitForJobExecutorToProcessAllJobs(processEngineConfiguration, managementService, 5000, 200);
+
+        assertThat(outboundEventChannelAdapter.receivedEvents).hasSize(3); // loopCardinality of 3
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            List<HistoricActivityInstance> historicActivityInstances = historyService.createHistoricActivityInstanceQuery().activityId("sendEventTask").list();
+            assertThat(historicActivityInstances).hasSize(3);
+            assertThat(historicActivityInstances).extracting(HistoricActivityInstance::getEndTime).isNotNull();
+        }
+    }
+
+    @Test
+    @Deployment
+    public void testSequentialMultiInstanceSendEvent() {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("process");
+        taskService.complete(taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult().getId());
+
+        for (int i = 0; i < 3; i++) {
+            Job job = managementService.createJobQuery().singleResult();
+            managementService.executeJob(job.getId());
+        }
+        assertThat(managementService.createJobQuery().list()).isEmpty();
+        assertThat(outboundEventChannelAdapter.receivedEvents).hasSize(3); // loopCardinality of 3
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            List<HistoricActivityInstance> historicActivityInstances = historyService.createHistoricActivityInstanceQuery().activityId("sendEventTask").list();
+            assertThat(historicActivityInstances).hasSize(3);
+            assertThat(historicActivityInstances).extracting(HistoricActivityInstance::getEndTime).isNotNull();
+        }
+    }
+
     @Test
     @Deployment
     public void testSendEventSynchronously() throws Exception {
@@ -165,6 +209,41 @@ public class SendEventTaskTest extends FlowableEventRegistryBpmnTestCase {
                 .isEqualTo("{"
                         + "   eventProperty: 'test'"
                         + " }");
+
+        task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        assertThat(task).isNotNull();
+        assertThat(task.getTaskDefinitionKey()).isEqualTo("taskAfter");
+    }
+    
+    @Test
+    @Deployment
+    public void testSendEventWithHeadersSynchronously() throws Exception {
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+                .processDefinitionKey("process")
+                .variable("headerValue", "My header value")
+                .start();
+
+        assertThat(outboundEventChannelAdapter.receivedEvents).isEmpty();
+
+        Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        assertThat(task).isNotNull();
+
+        taskService.complete(task.getId());
+
+        Job job = managementService.createJobQuery().processInstanceId(processInstance.getId()).singleResult();
+        assertThat(job).isNull();
+
+        assertThat(outboundEventChannelAdapter.receivedEvents).hasSize(1);
+
+        JsonNode jsonNode = processEngineConfiguration.getObjectMapper().readTree(outboundEventChannelAdapter.receivedEvents.get(0));
+        assertThatJson(jsonNode)
+                .isEqualTo("{"
+                        + "   eventProperty: 'test'"
+                        + " }");
+        
+        Map<String, Object> headerMap = outboundEventChannelAdapter.headers.get(0);
+        assertThat(headerMap.get("headerProperty1")).isEqualTo("test");
+        assertThat(headerMap.get("headerProperty2")).isEqualTo("My header value");
 
         task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertThat(task).isNotNull();
@@ -395,10 +474,12 @@ public class SendEventTaskTest extends FlowableEventRegistryBpmnTestCase {
     public static class TestOutboundEventChannelAdapter implements OutboundEventChannelAdapter<String> {
 
         public List<String> receivedEvents = new ArrayList<>();
+        public List<Map<String, Object>> headers = new ArrayList<>();
 
         @Override
-        public void sendEvent(String rawEvent) {
+        public void sendEvent(String rawEvent, Map<String, Object> headerMap) {
             receivedEvents.add(rawEvent);
+            headers.add(headerMap);
         }
     }
     

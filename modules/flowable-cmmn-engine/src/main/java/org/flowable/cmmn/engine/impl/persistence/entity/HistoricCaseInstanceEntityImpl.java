@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.flowable.cmmn.api.runtime.CaseInstance;
 import org.flowable.cmmn.engine.CmmnEngineConfiguration;
 import org.flowable.common.engine.impl.context.Context;
@@ -29,6 +30,7 @@ import org.flowable.variable.service.impl.persistence.entity.HistoricVariableIns
 public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity implements HistoricCaseInstanceEntity {
     
     protected String businessKey;
+    protected String businessStatus;
     protected String name;
     protected String parentId;
     protected String caseDefinitionId;
@@ -44,6 +46,8 @@ public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity imp
     protected String referenceType;
     protected String tenantId = CmmnEngineConfiguration.NO_TENANT_ID;
     protected List<HistoricVariableInstanceEntity> queryVariables;
+
+    protected String localizedName;
     
     // non persisted
     protected String caseDefinitionKey;
@@ -58,6 +62,7 @@ public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity imp
     public HistoricCaseInstanceEntityImpl(CaseInstance caseInstance) {
         this.id = caseInstance.getId();
         this.businessKey = caseInstance.getBusinessKey();
+        this.businessStatus = caseInstance.getBusinessStatus();
         this.name = caseInstance.getName();
         this.parentId = caseInstance.getParentId();
         this.caseDefinitionId = caseInstance.getCaseDefinitionId();
@@ -82,6 +87,7 @@ public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity imp
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("businessKey", businessKey);
+        persistentState.put("businessStatus", businessStatus);
         persistentState.put("name", name);
         persistentState.put("parentId", parentId);
         persistentState.put("caseDefinitionId", caseDefinitionId);
@@ -106,7 +112,18 @@ public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity imp
         this.businessKey = businessKey;
     }
     @Override
+    public String getBusinessStatus() {
+        return businessStatus;
+    }
+    @Override
+    public void setBusinessStatus(String businessStatus) {
+        this.businessStatus = businessStatus;
+    }
+    @Override
     public String getName() {
+        if (StringUtils.isNotBlank(localizedName)) {
+            return localizedName;
+        }
         return name;
     }
     @Override
@@ -243,6 +260,15 @@ public class HistoricCaseInstanceEntityImpl extends AbstractCmmnEngineEntity imp
         this.queryVariables = queryVariables;
     }
 
+    public String getLocalizedName() {
+        return localizedName;
+    }
+
+    @Override
+    public void setLocalizedName(String localizedName) {
+        this.localizedName = localizedName;
+    }
+  
     @Override
     public String getCaseDefinitionKey() {
         return caseDefinitionKey;

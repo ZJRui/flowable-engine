@@ -76,8 +76,14 @@
       <if test="processInstanceId != null">
         and RES.PROC_INST_ID_ = #{processInstanceId}
       </if>
+      <if test="withoutProcessInstanceId">
+        and RES.PROC_INST_ID_ IS NULL
+      </if>
       <if test="processDefinitionId != null">
         and RES.PROC_DEF_ID_ = #{processDefinitionId}
+      </if>
+      <if test="withoutProcessDefinitionId">
+        and RES.PROC_DEF_ID_ IS NULL
       </if>
       <if test="activityId != null">
         and RES.ACTIVITY_ID_ = #{activityId}
@@ -88,8 +94,14 @@
       <if test="scopeId != null">
         and RES.SCOPE_ID_ = #{scopeId}
       </if>
+      <if test="withoutScopeId">
+        and RES.SCOPE_ID_ IS NULL
+      </if>
       <if test="scopeDefinitionId != null">
         and RES.SCOPE_DEFINITION_ID_ = #{scopeDefinitionId}
+      </if>
+      <if test="withoutScopeDefinitionId">
+        and RES.SCOPE_DEFINITION_ID_ IS NULL
       </if>
       <if test="scopeType != null">
         and RES.SCOPE_TYPE_ = #{scopeType}
@@ -103,7 +115,7 @@
       <if test="tenantId != null">
         and RES.TENANT_ID_ = #{tenantId}
       </if>
-      <if test="tenantIds != null and !tenantIds.isEmpty()">
+      <if test="tenantIds != null and !tenantIds.empty">
         and RES.TENANT_ID_ in
         <foreach item="item" index="index" collection="tenantIds" open="(" separator="," close=")">
             #{item}
@@ -115,7 +127,7 @@
       <if test="configuration != null">
           and RES.CONFIGURATION_ = #{configuration}
       </if>
-      <if test="configurations != null and !configurations.isEmpty()">
+      <if test="configurations != null and !configurations.empty">
           and RES.CONFIGURATION_ in
           <foreach item="item" index="index" collection="configurations" open="(" separator="," close=")">
               #{item}
@@ -142,8 +154,14 @@
               <if test="orQueryObject.processInstanceId != null">
                   or RES.PROC_INST_ID_ = #{orQueryObject.processInstanceId}
               </if>
+              <if test="orQueryObject.withoutProcessInstanceId">
+                  or RES.PROC_INST_ID_ IS NULL
+              </if>
               <if test="orQueryObject.processDefinitionId != null">
                   or RES.PROC_DEF_ID_ = #{orQueryObject.processDefinitionId}
+              </if>
+              <if test="orQueryObject.withoutProcessDefinitionId">
+                  or RES.PROC_DEF_ID_ IS NULL
               </if>
               <if test="orQueryObject.activityId != null">
                   or RES.ACTIVITY_ID_ = #{orQueryObject.activityId}
@@ -154,8 +172,14 @@
               <if test="orQueryObject.scopeId != null">
                   or RES.SCOPE_ID_ = #{orQueryObject.scopeId}
               </if>
+              <if test="orQueryObject.withoutScopeId">
+                  or RES.SCOPE_ID_ IS NULL
+              </if>
               <if test="orQueryObject.scopeDefinitionId != null">
                   or RES.SCOPE_DEFINITION_ID_ = #{orQueryObject.scopeDefinitionId}
+              </if>
+              <if test="orQueryObject.withoutScopeDefinitionId">
+                  or RES.SCOPE_DEFINITION_ID_ IS NULL
               </if>
               <if test="orQueryObject.scopeType != null">
                   or RES.SCOPE_TYPE_ = #{orQueryObject.scopeType}
@@ -169,7 +193,7 @@
               <if test="orQueryObject.tenantId != null">
                   or RES.TENANT_ID_ = #{orQueryObject.tenantId}
               </if>
-              <if test="orQueryObject.tenantIds != null and !orQueryObject.tenantIds.isEmpty()">
+              <if test="orQueryObject.tenantIds != null and !orQueryObject.tenantIds.empty">
                   or RES.TENANT_ID_ in
                   <foreach item="item" index="index" collection="orQueryObject.tenantIds" open="(" separator="," close=")">
                       #{item}
@@ -181,7 +205,7 @@
               <if test="orQueryObject.configuration != null">
                   or RES.CONFIGURATION_ = #{orQueryObject.configuration}
               </if>
-              <if test="orQueryObject.configurations != null and !orQueryObject.configurations.isEmpty()">
+              <if test="orQueryObject.configurations != null and !orQueryObject.configurations.empty">
                   or RES.CONFIGURATION_ in
                   <foreach item="item" index="index" collection="orQueryObject.configurations" open="(" separator="," close=")">
                       #{item}

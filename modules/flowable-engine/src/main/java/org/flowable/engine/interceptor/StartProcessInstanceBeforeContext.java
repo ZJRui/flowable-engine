@@ -24,29 +24,28 @@ public class StartProcessInstanceBeforeContext extends AbstractStartProcessInsta
     protected String callbackType;
     protected String referenceId;
     protected String referenceType;
-    protected Map<String, Object> transientVariables;
     protected String tenantId;
     protected String initiatorVariableName;
     protected String overrideDefinitionTenantId;
     protected String predefinedProcessInstanceId;
     
     public StartProcessInstanceBeforeContext() {
-        
+
     }
-    
-    public StartProcessInstanceBeforeContext(String businessKey, String processInstanceName,
-                    String callbackId, String callbackType, String referenceId, String referenceType,
-                    Map<String, Object> variables, Map<String, Object> transientVariables, String tenantId, 
-                    String initiatorVariableName, String initialActivityId, FlowElement initialFlowElement, Process process,
-                    ProcessDefinition processDefinition, String overrideDefinitionTenantId, String predefinedProcessInstanceId) {
         
-        super(businessKey, processInstanceName, variables, initialActivityId, initialFlowElement, process, processDefinition);
+    public StartProcessInstanceBeforeContext(String businessKey, String businessStatus, String processInstanceName,
+            String callbackId, String callbackType, String referenceId, String referenceType,
+            Map<String, Object> variables, Map<String, Object> transientVariables, String tenantId,
+            String initiatorVariableName, String initialActivityId, FlowElement initialFlowElement, Process process,
+            ProcessDefinition processDefinition, String overrideDefinitionTenantId, String predefinedProcessInstanceId) {
+        
+        super(businessKey, businessStatus, processInstanceName, variables, transientVariables, initialActivityId, initialFlowElement, process,
+                processDefinition);
         
         this.callbackId = callbackId;
         this.callbackType = callbackType;
         this.referenceId = referenceId;
         this.referenceType = referenceType;
-        this.transientVariables = transientVariables;
         this.tenantId = tenantId;
         this.initiatorVariableName = initiatorVariableName;
         this.overrideDefinitionTenantId = overrideDefinitionTenantId;
@@ -83,14 +82,6 @@ public class StartProcessInstanceBeforeContext extends AbstractStartProcessInsta
 
     public void setReferenceType(String referenceType) {
         this.referenceType = referenceType;
-    }
-
-    public Map<String, Object> getTransientVariables() {
-        return transientVariables;
-    }
-
-    public void setTransientVariables(Map<String, Object> transientVariables) {
-        this.transientVariables = transientVariables;
     }
 
     public String getTenantId() {

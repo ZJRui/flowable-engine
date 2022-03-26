@@ -68,6 +68,7 @@ create table ACT_RU_EXECUTION (
     REFERENCE_ID_ varchar(255),
     REFERENCE_TYPE_ varchar(255),
     PROPAGATED_STAGE_INST_ID_ varchar(255),
+    BUSINESS_STATUS_ varchar(255),
     primary key (ID_)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE utf8_bin;
 
@@ -100,7 +101,7 @@ create table ACT_EVT_LOG (
     PROC_INST_ID_ varchar(64),
     EXECUTION_ID_ varchar(64),
     TASK_ID_ varchar(64),
-    TIME_STAMP_ timestamp(3) not null,
+    TIME_STAMP_ timestamp(3) not null DEFAULT CURRENT_TIMESTAMP(3),
     USER_ID_ varchar(255),
     DATA_ LONGBLOB,
     LOCK_OWNER_ varchar(255),
@@ -317,7 +318,7 @@ alter table ACT_PROCDEF_INFO
     unique (PROC_DEF_ID_);
 
 insert into ACT_GE_PROPERTY
-values ('schema.version', '6.6.2.1', 1);
+values ('schema.version', '6.7.2.1', 1);
 
 insert into ACT_GE_PROPERTY
-values ('schema.history', 'create(6.6.2.1)', 1);
+values ('schema.history', 'create(6.7.2.1)', 1);

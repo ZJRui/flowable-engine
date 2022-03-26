@@ -48,8 +48,10 @@ import org.flowable.cmmn.rest.service.api.repository.DecisionResponse;
 import org.flowable.cmmn.rest.service.api.repository.DeploymentResourceResponse;
 import org.flowable.cmmn.rest.service.api.repository.FormDefinitionResponse;
 import org.flowable.cmmn.rest.service.api.runtime.caze.CaseInstanceResponse;
+import org.flowable.cmmn.rest.service.api.runtime.caze.EventSubscriptionResponse;
 import org.flowable.cmmn.rest.service.api.runtime.planitem.PlanItemInstanceResponse;
 import org.flowable.cmmn.rest.service.api.runtime.task.TaskResponse;
+import org.flowable.cmmn.rest.service.api.runtime.variable.VariableInstanceResponse;
 import org.flowable.common.engine.api.FlowableException;
 import org.flowable.common.engine.api.FlowableIllegalArgumentException;
 import org.flowable.common.engine.api.scope.ScopeTypes;
@@ -68,6 +70,7 @@ import org.flowable.common.rest.variable.RestVariableConverter;
 import org.flowable.common.rest.variable.ShortRestVariableConverter;
 import org.flowable.common.rest.variable.StringRestVariableConverter;
 import org.flowable.dmn.api.DmnDecision;
+import org.flowable.eventsubscription.api.EventSubscription;
 import org.flowable.form.api.FormDefinition;
 import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.identitylink.api.history.HistoricIdentityLink;
@@ -76,6 +79,7 @@ import org.flowable.job.api.Job;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -94,10 +98,10 @@ public class CmmnRestResponseFactory {
     public static final int VARIABLE_TASK = 1;
     public static final int VARIABLE_EXECUTION = 2;
     public static final int VARIABLE_CASE = 3;
-    public static final int VARIABLE_HISTORY_TASK = 4;
-    public static final int VARIABLE_HISTORY_CASE = 5;
-    public static final int VARIABLE_HISTORY_VARINSTANCE = 6;
-    public static final int VARIABLE_HISTORY_DETAIL = 7;
+    public static final int VARIABLE_VARINSTANCE = 4;
+    public static final int VARIABLE_HISTORY_TASK = 5;
+    public static final int VARIABLE_HISTORY_CASE = 6;
+    public static final int VARIABLE_HISTORY_VARINSTANCE = 7;
 
     public static final String BYTE_ARRAY_VARIABLE_TYPE = "binary";
     public static final String SERIALIZABLE_VARIABLE_TYPE = "serializable";
@@ -313,8 +317,14 @@ public class CmmnRestResponseFactory {
                     restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_TASK_VARIABLE_DATA, id, name));
                 } else if (variableType == VARIABLE_CASE) {
                     restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_CASE_INSTANCE_VARIABLE_DATA, id, name));
+                } else if (variableType == VARIABLE_VARINSTANCE) {
+                    restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_VARIABLE_INSTANCE_DATA, id, name));
                 } else if (variableType == VARIABLE_HISTORY_TASK) {
                     restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_HISTORIC_TASK_INSTANCE_VARIABLE_DATA, id, name));
+                } else if (variableType == VARIABLE_HISTORY_VARINSTANCE) {
+                    restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_HISTORIC_VARIABLE_INSTANCE_DATA, id, name));
+                } else if (variableType == VARIABLE_HISTORY_CASE) {
+                    restVar.setValueUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_HISTORIC_CASE_INSTANCE_VARIABLE_DATA, id, name));
                 }
             }
         }
@@ -454,6 +464,7 @@ public class CmmnRestResponseFactory {
     public CaseInstanceResponse createCaseInstanceResponse(CaseInstance caseInstance, RestUrlBuilder urlBuilder) {
         CaseInstanceResponse result = new CaseInstanceResponse();
         result.setBusinessKey(caseInstance.getBusinessKey());
+        result.setBusinessStatus(caseInstance.getBusinessStatus());
         result.setId(caseInstance.getId());
         result.setName(caseInstance.getName());
         result.setStartTime(caseInstance.getStartTime());
@@ -564,6 +575,81 @@ public class CmmnRestResponseFactory {
 
         return result;
     }
+    
+    public List<VariableInstanceResponse> createVariableInstanceResponseList(List<VariableInstance> variableInstances) {
+        RestUrlBuilder urlBuilder = createUrlBuilder();
+        List<VariableInstanceResponse> responseList = new ArrayList<>(variableInstances.size());
+        for (VariableInstance instance : variableInstances) {
+            responseList.add(createVariableInstanceResponse(instance, urlBuilder));
+        }
+        return responseList;
+    }
+
+    public VariableInstanceResponse createVariableInstanceResponse(VariableInstance variableInstance) {
+        return createVariableInstanceResponse(variableInstance, createUrlBuilder());
+    }
+
+    public VariableInstanceResponse createVariableInstanceResponse(VariableInstance variableInstance, RestUrlBuilder urlBuilder) {
+        VariableInstanceResponse result = new VariableInstanceResponse();
+        result.setId(variableInstance.getId());
+        if (variableInstance.getScopeId() != null && ScopeTypes.CMMN.equals(variableInstance.getScopeType())) {
+            result.setCaseInstanceId(variableInstance.getScopeId());
+            result.setCaseInstanceUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_CASE_INSTANCE, variableInstance.getScopeId()));
+        }
+        result.setTaskId(variableInstance.getTaskId());
+        result.setVariable(createRestVariable(variableInstance.getName(), variableInstance.getValue(), null, variableInstance.getId(), VARIABLE_VARINSTANCE, false, urlBuilder));
+        return result;
+    }
+    
+    public List<EventSubscriptionResponse> createEventSubscriptionResponseList(List<EventSubscription> eventSubscriptions) {
+        RestUrlBuilder urlBuilder = createUrlBuilder();
+        List<EventSubscriptionResponse> responseList = new ArrayList<>(eventSubscriptions.size());
+        for (EventSubscription instance : eventSubscriptions) {
+            responseList.add(createEventSubscriptionResponse(instance, urlBuilder));
+        }
+        return responseList;
+    }
+
+    public EventSubscriptionResponse createEventSubscriptionResponse(EventSubscription eventSubscription) {
+        return createEventSubscriptionResponse(eventSubscription, createUrlBuilder());
+    }
+
+    public EventSubscriptionResponse createEventSubscriptionResponse(EventSubscription eventSubscription, RestUrlBuilder urlBuilder) {
+        EventSubscriptionResponse response = new EventSubscriptionResponse();
+        response.setId(eventSubscription.getId());
+        response.setCreated(eventSubscription.getCreated());
+        response.setEventType(eventSubscription.getEventType());
+        response.setEventName(eventSubscription.getEventName());
+        response.setActivityId(eventSubscription.getActivityId());
+        response.setPlanItemInstanceId(eventSubscription.getSubScopeId());
+        response.setCaseDefinitionId(eventSubscription.getScopeDefinitionId());
+        response.setCaseInstanceId(eventSubscription.getScopeId());
+        response.setExecutionId(eventSubscription.getExecutionId());
+        response.setProcessInstanceId(eventSubscription.getProcessInstanceId());
+        response.setProcessDefinitionId(eventSubscription.getProcessDefinitionId());
+        response.setSubScopeId(eventSubscription.getSubScopeId());
+        response.setScopeId(eventSubscription.getScopeId());
+        response.setScopeType(eventSubscription.getScopeType());
+        response.setScopeDefinitionId(eventSubscription.getScopeDefinitionId());
+        response.setConfiguration(eventSubscription.getConfiguration());
+        response.setTenantId(eventSubscription.getTenantId());
+
+        response.setUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_EVENT_SUBSCRIPTION, eventSubscription.getId()));
+
+        if (eventSubscription.getScopeDefinitionId() != null) {
+            response.setCaseDefinitionUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_CASE_DEFINITION, eventSubscription.getScopeDefinitionId()));
+        }
+
+        if (eventSubscription.getScopeId() != null) {
+            response.setCaseInstanceUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_CASE_INSTANCE, eventSubscription.getScopeId()));
+        }
+
+        if (eventSubscription.getSubScopeId() != null) {
+            response.setPlanItemInstanceUrl(urlBuilder.buildUrl(CmmnRestUrls.URL_PLAN_ITEM_INSTANCE, eventSubscription.getSubScopeId()));
+        }
+
+        return response;
+    }
 
     public List<HistoricCaseInstanceResponse> createHistoricCaseInstanceResponseList(List<HistoricCaseInstance> caseInstances) {
         RestUrlBuilder urlBuilder = createUrlBuilder();
@@ -581,6 +667,7 @@ public class CmmnRestResponseFactory {
     public HistoricCaseInstanceResponse createHistoricCaseInstanceResponse(HistoricCaseInstance caseInstance, RestUrlBuilder urlBuilder) {
         HistoricCaseInstanceResponse result = new HistoricCaseInstanceResponse();
         result.setBusinessKey(caseInstance.getBusinessKey());
+        result.setBusinessStatus(caseInstance.getBusinessStatus());
         result.setName(caseInstance.getName());
         result.setEndTime(caseInstance.getEndTime());
         result.setId(caseInstance.getId());

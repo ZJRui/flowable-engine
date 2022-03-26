@@ -23,6 +23,8 @@ import java.util.Random;
 
 import org.flowable.common.engine.api.constant.ReferenceTypes;
 import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.history.HistoryLevel;
+import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
@@ -62,8 +64,8 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
     
     protected TestInboundEventChannelAdapter setupTestChannel() {
         TestInboundEventChannelAdapter inboundEventChannelAdapter = new TestInboundEventChannelAdapter();
-        getEventRegistryEngineConfiguration().getExpressionManager().getBeans()
-            .put("inboundEventChannelAdapter", inboundEventChannelAdapter);
+        Map<Object, Object> beans = getEventRegistryEngineConfiguration().getExpressionManager().getBeans();
+        beans.put("inboundEventChannelAdapter", inboundEventChannelAdapter);
 
         getEventRepositoryService().createInboundChannelModelBuilder()
             .key("test-channel")
@@ -356,6 +358,62 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
                 entry("payload1", "Hello World")
             );
     }
+    
+    @Test
+    @Deployment
+    public void testProcessStartWithEventSubProcess() {
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionKey("process").singleResult();
+        assertThat(processDefinition).isNotNull();
+
+        EventSubscription eventSubscription = runtimeService.createEventSubscriptionQuery()
+            .processDefinitionId(processDefinition.getId())
+            .scopeType(ScopeTypes.BPMN)
+            .singleResult();
+        assertThat(eventSubscription).isNotNull();
+        assertThat(eventSubscription.getEventType()).isEqualTo("myEvent");
+
+        assertThat(runtimeService.createProcessInstanceQuery().list()).isEmpty();
+
+        inboundEventChannelAdapter.triggerTestEvent("myVar1");
+        
+        assertThat(runtimeService.createProcessInstanceQuery().list()).hasSize(1);
+        String processInstanceId = runtimeService.createProcessInstanceQuery().singleResult().getId();
+        
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("task").count()).isEqualTo(1);
+        
+        List<EventSubscription> eventSubProcessEventSubscriptions = runtimeService.createEventSubscriptionQuery()
+            .processInstanceId(processInstanceId)
+            .scopeType(ScopeTypes.BPMN)
+            .list();
+        
+        assertThat(eventSubProcessEventSubscriptions.size()).isEqualTo(2);
+        
+        for (EventSubscription subProcessEventSubscription : eventSubProcessEventSubscriptions) {
+            assertThat(subProcessEventSubscription.getEventType()).isEqualTo("myEvent");
+        }
+        
+        inboundEventChannelAdapter.triggerTestEvent("myVar2");
+        
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("subProcessTask1").count()).isZero();
+        
+        inboundEventChannelAdapter.triggerTestEvent("myVar1");
+        
+        Task task = taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("subProcessTask1").singleResult();
+        assertThat(task).isNotNull();
+        
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("task").count()).isEqualTo(1);
+        
+        inboundEventChannelAdapter.triggerTestEvent("myVar1Interrupting");
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("task").count()).isZero();
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("subProcessTask1").count()).isZero();
+        
+        task = taskService.createTaskQuery().processInstanceId(processInstanceId).taskDefinitionKey("subProcessTask1Interrupting").singleResult();
+        assertThat(task).isNotNull();
+        
+        taskService.complete(task.getId());
+        
+        assertThat(runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).count()).isZero();
+    }
 
     @Test
     @Deployment
@@ -378,6 +436,10 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
     public void testStartOneInstanceWithMultipleProcessDefinitionVersions() {
         inboundEventChannelAdapter.triggerTestEvent("testCustomer");
         assertThat(runtimeService.createProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(1);
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            assertThat(historyService.createHistoricProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(1);
+        }
         
         org.flowable.engine.repository.Deployment deployment = null;
         try {
@@ -389,14 +451,28 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
             
             inboundEventChannelAdapter.triggerTestEvent("testCustomer");
             assertThat(runtimeService.createProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(1);
+
+            if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+                assertThat(historyService.createHistoricProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(1);
+            }
     
             inboundEventChannelAdapter.triggerTestEvent("anotherTestCustomer");
             assertThat(runtimeService.createProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(2);
+            if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+                assertThat(historyService.createHistoricProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(2);
+            }
             inboundEventChannelAdapter.triggerTestEvent("anotherTestCustomer");
             assertThat(runtimeService.createProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(2);
+
+            if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+                assertThat(historyService.createHistoricProcessInstanceQuery().processDefinitionKey("correlation").count()).isEqualTo(2);
+            }
             
         } finally {
             repositoryService.deleteDeployment(deployment.getId(), true);
+            if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+                // nothing to do, isHistoryLevelAtLeast will execute the jobs
+            }
         }
     }
 
@@ -508,10 +584,167 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
             );
     }
 
+    @Test
+    public void testEventRegistrySubscriptionsRecreatedOnDeploymentDelete() {
+        org.flowable.engine.repository.Deployment deployment1 = repositoryService.createDeployment()
+            .addClasspathResource("org/flowable/engine/test/eventregistry/BpmnEventRegistryConsumerTest.testRedeploy.bpmn20.xml")
+            .deploy();
+        deploymentIdsForAutoCleanup.add(deployment1.getId());
+        ProcessDefinition processDefinition1 = repositoryService.createProcessDefinitionQuery().deploymentId(deployment1.getId()).singleResult();
+
+        // After deploying, there should be one eventsubscription: to start the instance
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(tuple("myEvent", processDefinition1.getId(), null));
+
+        // After the instance is started, there should be one additional eventsubscription
+        inboundEventChannelAdapter.triggerTestEvent();
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().singleResult();
+        assertThat(processInstance.getProcessDefinitionId()).isEqualTo(processDefinition1.getId());
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                tuple("myEvent", processDefinition1.getId(), null),
+                tuple("myEvent", processDefinition1.getId(), processInstance.getId())
+            );
+
+        // Redeploying the same definition:
+        // Event subscription to start should reflect new definition id
+        // Existing subscription for boundary event should remain
+        org.flowable.engine.repository.Deployment deployment2 = repositoryService.createDeployment()
+            .addClasspathResource("org/flowable/engine/test/eventregistry/BpmnEventRegistryConsumerTest.testRedeploy.bpmn20.xml")
+            .deploy();
+        deploymentIdsForAutoCleanup.add(deployment2.getId());
+        ProcessDefinition processDefinition2 = repositoryService.createProcessDefinitionQuery().deploymentId(deployment2.getId()).singleResult();
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                tuple("myEvent", processDefinition2.getId(), null), // note the new definition id
+                tuple("myEvent", processDefinition1.getId(), processInstance.getId()) // note the original id
+            );
+
+        // Triggering the instance event subscription should continue the case instance like before
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstance.getId()).list())
+            .extracting(Task::getName)
+            .containsOnly("My task");
+
+        inboundEventChannelAdapter.triggerTestEvent();
+
+        // Ended thanks to boundary event
+        assertProcessEnded(processInstance.getId());
+        processInstance = runtimeService.createProcessInstanceQuery().singleResult();
+        assertThat(processInstance).isNotNull();
+        assertThat(processInstance.getProcessDefinitionId()).isEqualTo(processDefinition2.getId());
+
+        assertThat(runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                    tuple("myEvent", processDefinition2.getId(), null),
+                    tuple("myEvent", processDefinition2.getId(), processInstance.getId()) // triggering the test event started a new process
+            );
+
+        deploymentIdsForAutoCleanup.remove(deployment2.getId());
+
+        // Removing the second definition should recreate the one from the first one
+        // There won't be a process instance since we will do cascaded delete of the deployment
+        repositoryService.deleteDeployment(deployment2.getId(), true);
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            // nothing to do, isHistoryLevelAtLeast will execute the jobs
+        }
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+                .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+                .containsOnly(
+                        tuple("myEvent", processDefinition1.getId(), null)
+                );
+    }
+
+    @Test
+    public void testEventRegistrySubscriptionsShouldNotBeRecreatedOnNonLatestDeploymentDelete() {
+        org.flowable.engine.repository.Deployment deployment1 = repositoryService.createDeployment()
+            .addClasspathResource("org/flowable/engine/test/eventregistry/BpmnEventRegistryConsumerTest.testRedeploy.bpmn20.xml")
+            .deploy();
+        deploymentIdsForAutoCleanup.add(deployment1.getId());
+        ProcessDefinition processDefinition1 = repositoryService.createProcessDefinitionQuery().deploymentId(deployment1.getId()).singleResult();
+
+        // After deploying, there should be one eventsubscription: to start the instance
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(tuple("myEvent", processDefinition1.getId(), null));
+
+        // After the instance is started, there should be one additional eventsubscription
+        inboundEventChannelAdapter.triggerTestEvent();
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().singleResult();
+        assertThat(processInstance.getProcessDefinitionId()).isEqualTo(processDefinition1.getId());
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                tuple("myEvent", processDefinition1.getId(), null),
+                tuple("myEvent", processDefinition1.getId(), processInstance.getId())
+            );
+
+        // Redeploying the same definition:
+        // Event subscription to start should reflect new definition id
+        // Existing subscription for boundary event should remain
+        org.flowable.engine.repository.Deployment deployment2 = repositoryService.createDeployment()
+            .addClasspathResource("org/flowable/engine/test/eventregistry/BpmnEventRegistryConsumerTest.testRedeploy.bpmn20.xml")
+            .deploy();
+        deploymentIdsForAutoCleanup.add(deployment2.getId());
+        ProcessDefinition processDefinition2 = repositoryService.createProcessDefinitionQuery().deploymentId(deployment2.getId()).singleResult();
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                tuple("myEvent", processDefinition2.getId(), null), // note the new definition id
+                tuple("myEvent", processDefinition1.getId(), processInstance.getId()) // note the original id
+            );
+
+        // Triggering the instance event subscription should continue the case instance like before
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstance.getId()).list())
+            .extracting(Task::getName)
+            .containsOnly("My task");
+
+        inboundEventChannelAdapter.triggerTestEvent();
+
+        // Ended thanks to boundary event
+        assertProcessEnded(processInstance.getId());
+        processInstance = runtimeService.createProcessInstanceQuery().singleResult();
+        assertThat(processInstance).isNotNull();
+        assertThat(processInstance.getProcessDefinitionId()).isEqualTo(processDefinition2.getId());
+
+        assertThat(runtimeService.createEventSubscriptionQuery().list())
+            .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+            .containsOnly(
+                    tuple("myEvent", processDefinition2.getId(), null),
+                    tuple("myEvent", processDefinition2.getId(), processInstance.getId()) // triggering the test event started a new process
+            );
+
+        deploymentIdsForAutoCleanup.remove(deployment1.getId());
+
+        // Removing the second definition should recreate the one from the first one
+        // There won't be a process instance since we will do cascaded delete of the deployment
+        repositoryService.deleteDeployment(deployment1.getId(), true);
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            // nothing to do, isHistoryLevelAtLeast will execute the jobs
+        }
+
+        assertThat( runtimeService.createEventSubscriptionQuery().list())
+                .extracting(EventSubscription::getEventType, EventSubscription::getProcessDefinitionId, EventSubscription::getProcessInstanceId)
+                .containsOnly(
+                        tuple("myEvent", processDefinition2.getId(), null),
+                        tuple("myEvent", processDefinition2.getId(), processInstance.getId())
+                );
+    }
+
     private static class TestInboundEventChannelAdapter implements InboundEventChannelAdapter {
 
         public InboundChannelModel inboundChannelModel;
         public EventRegistry eventRegistry;
+        protected ObjectMapper objectMapper = new ObjectMapper();
 
         @Override
         public void setInboundChannelModel(InboundChannelModel inboundChannelModel) {
@@ -530,14 +763,21 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
         public void triggerTestEvent(String customerId) {
             triggerTestEvent(customerId, null);
         }
-
+        
         public void triggerOrderTestEvent(String orderId) {
             triggerTestEvent(null, orderId);
         }
 
         public void triggerTestEvent(String customerId, String orderId) {
-            ObjectMapper objectMapper = new ObjectMapper();
-
+            ObjectNode eventNode = createTestEventNode(customerId, orderId);
+            try {
+                eventRegistry.eventReceived(inboundChannelModel, objectMapper.writeValueAsString(eventNode));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        
+        protected ObjectNode createTestEventNode(String customerId, String orderId) {
             ObjectNode json = objectMapper.createObjectNode();
             json.put("type", "myEvent");
             if (customerId != null) {
@@ -549,15 +789,9 @@ public class BpmnEventRegistryConsumerTest extends FlowableEventRegistryBpmnTest
             }
             json.put("payload1", "Hello World");
             json.put("payload2", new Random().nextInt());
-            try {
-                eventRegistry.eventReceived(inboundChannelModel, objectMapper.writeValueAsString(json));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            
+            return json;
         }
 
     }
-
-
-
 }

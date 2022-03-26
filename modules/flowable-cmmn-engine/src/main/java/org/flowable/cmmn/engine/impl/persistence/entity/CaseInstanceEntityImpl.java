@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.flowable.cmmn.api.history.HistoricCaseInstance;
 import org.flowable.cmmn.engine.CmmnEngineConfiguration;
 import org.flowable.cmmn.engine.impl.repository.CaseDefinitionUtil;
@@ -42,6 +43,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntity implements CaseInstanceEntity {
 
     protected String businessKey;
+    protected String businessStatus;
     protected String name;
     protected String parentId;
     protected String caseDefinitionId;
@@ -63,6 +65,7 @@ public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntit
     // non persisted
     protected List<PlanItemInstanceEntity> childPlanItemInstances;
     protected List<SentryPartInstanceEntity> satisfiedSentryPartInstances;
+    protected String localizedName;
 
     protected List<VariableInstanceEntity> queryVariables;
 
@@ -77,6 +80,7 @@ public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntit
     public CaseInstanceEntityImpl(HistoricCaseInstance historicCaseInstance, Map<String, VariableInstanceEntity> variables) {
         this.id = historicCaseInstance.getId();
         this.businessKey = historicCaseInstance.getBusinessKey();
+        this.businessStatus = historicCaseInstance.getBusinessStatus();
         this.name = historicCaseInstance.getName();
         this.parentId = historicCaseInstance.getParentId();
         this.caseDefinitionId = historicCaseInstance.getCaseDefinitionId();
@@ -102,6 +106,7 @@ public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntit
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("businessKey", businessKey);
+        persistentState.put("businessStatus", businessStatus);
         persistentState.put("name", name);
         persistentState.put("parentId", parentId);
         persistentState.put("caseDefinitionId", caseDefinitionId);
@@ -128,7 +133,18 @@ public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntit
         this.businessKey = businessKey;
     }
     @Override
+    public String getBusinessStatus() {
+        return businessStatus;
+    }
+    @Override
+    public void setBusinessStatus(String businessStatus) {
+        this.businessStatus = businessStatus;
+    }
+    @Override
     public String getName() {
+        if(StringUtils.isNotBlank(localizedName)) {
+            return localizedName;
+        }
         return name;
     }
     @Override
@@ -404,6 +420,15 @@ public class CaseInstanceEntityImpl extends AbstractCmmnEngineVariableScopeEntit
         }
 
         return caseVariables;
+    }
+
+    public String getLocalizedName() {
+        return localizedName;
+    }
+
+    @Override
+    public void setLocalizedName(String localizedName) {
+        this.localizedName = localizedName;
     }
 
     @Override

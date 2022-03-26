@@ -32,12 +32,15 @@ import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.LoggingProducerListener;
 import org.testcontainers.containers.KafkaContainer;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * @author Filip Hrisafov
@@ -55,6 +58,11 @@ public class EventRegistryKafkaConfiguration {
         ContainerProperties containerProperties = factory.getContainerProperties();
         containerProperties.setMissingTopicsFatal(true);
         return factory;
+    }
+    
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean
@@ -88,8 +96,10 @@ public class EventRegistryKafkaConfiguration {
     }
 
     @Bean
-    public KafkaChannelDefinitionProcessor kafkaChannelDefinitionProcessor(KafkaListenerEndpointRegistry endpointRegistry, KafkaOperations<Object, Object> kafkaOperations) {
-        KafkaChannelDefinitionProcessor kafkaChannelDefinitionProcessor = new KafkaChannelDefinitionProcessor();
+    public KafkaChannelDefinitionProcessor kafkaChannelDefinitionProcessor(KafkaListenerEndpointRegistry endpointRegistry, 
+            KafkaOperations<Object, Object> kafkaOperations, ObjectMapper objectMapper) {
+        
+        KafkaChannelDefinitionProcessor kafkaChannelDefinitionProcessor = new KafkaChannelDefinitionProcessor(objectMapper);
         kafkaChannelDefinitionProcessor.setEndpointRegistry(endpointRegistry);
         kafkaChannelDefinitionProcessor.setKafkaOperations(kafkaOperations);
         return kafkaChannelDefinitionProcessor;
@@ -101,6 +111,13 @@ public class EventRegistryKafkaConfiguration {
         adminProperties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
 
         return AdminClient.create(adminProperties);
+    }
+
+    @Bean
+    public KafkaAdmin kafkaAdmin(KafkaContainer kafkaContainer) {
+        Map<String, Object> adminProperties = new HashMap<>();
+        adminProperties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
+        return new KafkaAdmin(adminProperties);
     }
 
     @Bean(destroyMethod = "stop")

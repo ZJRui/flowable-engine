@@ -42,6 +42,8 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.variable.api.history.HistoricVariableInstanceQuery;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.flowable.variable.api.runtime.VariableInstanceQuery;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +54,7 @@ public class CallActivityTest extends ResourceFlowableTestCase {
     private static final String MESSAGE_TRIGGERED_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testSuspendedProcessCallActivity_messageTriggeredProcess.bpmn.xml";
     private static final String INHERIT_VARIABLES_MAIN_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testInheritVariablesCallActivity_mainProcess.bpmn20.xml";
     private static final String INHERIT_VARIABLES_CHILD_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testSameDeploymentCallActivity_childProcess.bpmn20.xml";
+    private static final String INHERIT_VARIABLES_CHILD_PROCESS_TRANSIENT_VAR_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.childProcess_transient_var.bpmn20.xml";
     private static final String SAME_DEPLOYMENT_MAIN_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testSameDeploymentCallActivity_mainProcess.bpmn20.xml";
     private static final String SAME_DEPLOYMENT_CHILD_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testSameDeploymentCallActivity_childProcess.bpmn20.xml";
     private static final String SAME_DEPLOYMENT_CHILD_V2_PROCESS_RESOURCE = "org/flowable/engine/test/bpmn/subprocess/SubProcessTest.testSameDeploymentCallActivity_childProcess_v2.bpmn20.xml";
@@ -154,12 +157,18 @@ public class CallActivityTest extends ResourceFlowableTestCase {
         activityInstanceQuery.activityId("childProcessCall");
         HistoricActivityInstance activityInstance = activityInstanceQuery.singleResult();
         String calledInstanceId = activityInstance.getCalledProcessInstanceId();
-
-        HistoricVariableInstanceQuery variableInstanceQuery = historyService.createHistoricVariableInstanceQuery();
-        List<HistoricVariableInstance> variableInstances = variableInstanceQuery.processInstanceId(calledInstanceId).list();
-
+        
+        List<VariableInstance> variableInstances = runtimeService.createVariableInstanceQuery().processInstanceId(calledInstanceId).list();
         assertThat(variableInstances).hasSize(4);
-        for (HistoricVariableInstance variable : variableInstances) {
+        for (VariableInstance variable : variableInstances) {
+            assertThat(variable.getValue()).isEqualTo(variables.get(variable.getName()));
+        }
+        
+        HistoricVariableInstanceQuery variableInstanceQuery = historyService.createHistoricVariableInstanceQuery();
+        List<HistoricVariableInstance> historicVariableInstances = variableInstanceQuery.processInstanceId(calledInstanceId).list();
+
+        assertThat(historicVariableInstances).hasSize(4);
+        for (HistoricVariableInstance variable : historicVariableInstances) {
             assertThat(variable.getValue()).isEqualTo(variables.get(variable.getVariableName()));
         }
     }
@@ -198,6 +207,36 @@ public class CallActivityTest extends ResourceFlowableTestCase {
         List<HistoricVariableInstance> variableInstances = variableInstanceQuery.list();
 
         assertThat(variableInstances).isEmpty();
+    }
+
+    @Test
+    public void testInheritTransientVariablesAsTransient() throws Exception {
+        BpmnModel mainBpmnModel = loadBPMNModel(INHERIT_VARIABLES_MAIN_PROCESS_RESOURCE);
+        BpmnModel childBpmnModel = loadBPMNModel(INHERIT_VARIABLES_CHILD_PROCESS_TRANSIENT_VAR_RESOURCE);
+
+        processEngine.getRepositoryService()
+            .createDeployment()
+            .name("mainProcessDeployment")
+            .addBpmnModel("mainProcess.bpmn20.xml", mainBpmnModel).deploy();
+
+        processEngine.getRepositoryService()
+            .createDeployment()
+            .name("childProcessDeployment")
+            .addBpmnModel("childProcess.bpmn20.xml", childBpmnModel).deploy();
+
+        ProcessInstance mainProcessInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("mainProcess")
+            .variable("persistentVar1", "hello world")
+            .variable("persistentVar2", 123)
+            .transientVariable("transientVar1", "transient hello world")
+            .transientVariable("transientVar2", 1234)
+            .transientVariable("transientVar3", false)
+            .start();
+
+        ProcessInstance calledProcessInstance = runtimeService.createProcessInstanceQuery().superProcessInstanceId(mainProcessInstance.getId()).singleResult();
+        assertThat(runtimeService.getVariables(calledProcessInstance.getId())).containsOnlyKeys("persistentVar1", "persistentVar2");
+
+        assertThat(taskService.createTaskQuery().processInstanceId(calledProcessInstance.getId()).singleResult().getName()).isEqualTo("transient hello world");
     }
 
     @Test
@@ -415,10 +454,10 @@ public class CallActivityTest extends ResourceFlowableTestCase {
             HistoricProcessInstance subProcessInstance = historyService.createHistoricProcessInstanceQuery().superProcessInstanceId(mainProcessInstance.getId()).singleResult();
             assertThat(subProcessInstance.getBusinessKey()).isEqualTo("testSubKey");
             
-            HistoricVariableInstanceQuery variableInstanceQuery = historyService.createHistoricVariableInstanceQuery();
-            List<HistoricVariableInstance> variableInstances = variableInstanceQuery.processInstanceId(mainProcessInstance.getId()).list();
+            VariableInstanceQuery variableInstanceQuery = runtimeService.createVariableInstanceQuery();
+            List<VariableInstance> variableInstances = variableInstanceQuery.processInstanceId(mainProcessInstance.getId()).list();
             assertThat(variableInstances)
-                    .extracting(HistoricVariableInstance::getVariableName, HistoricVariableInstance::getValue)
+                    .extracting(VariableInstance::getName, VariableInstance::getValue)
                     .containsExactlyInAnyOrder(
                             tuple("var1", "test value"),
                             tuple("beforeContextVar", "test")
@@ -426,6 +465,24 @@ public class CallActivityTest extends ResourceFlowableTestCase {
             
             variableInstances = variableInstanceQuery.processInstanceId(subProcessInstance.getId()).list();
             assertThat(variableInstances)
+                    .extracting(VariableInstance::getName, VariableInstance::getValue)
+                    .containsExactlyInAnyOrder(
+                            tuple("var1", "test value"),
+                            tuple("beforeContextVar", "test"),
+                            tuple("beforeSubContextVar", "subtest")
+                    );
+            
+            HistoricVariableInstanceQuery historicVariableInstanceQuery = historyService.createHistoricVariableInstanceQuery();
+            List<HistoricVariableInstance> historicVariableInstances = historicVariableInstanceQuery.processInstanceId(mainProcessInstance.getId()).list();
+            assertThat(historicVariableInstances)
+                    .extracting(HistoricVariableInstance::getVariableName, HistoricVariableInstance::getValue)
+                    .containsExactlyInAnyOrder(
+                            tuple("var1", "test value"),
+                            tuple("beforeContextVar", "test")
+                    );
+            
+            historicVariableInstances = historicVariableInstanceQuery.processInstanceId(subProcessInstance.getId()).list();
+            assertThat(historicVariableInstances)
                     .extracting(HistoricVariableInstance::getVariableName, HistoricVariableInstance::getValue)
                     .containsExactlyInAnyOrder(
                             tuple("var1", "test value"),

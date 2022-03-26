@@ -13,7 +13,11 @@
 
 package org.activiti.spring.test.jpa;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
 
 /**
  * @author Frederik Heremans
@@ -22,7 +26,7 @@ import javax.persistence.*;
 public class LoanRequest {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "ID_")
     private Long id;
 

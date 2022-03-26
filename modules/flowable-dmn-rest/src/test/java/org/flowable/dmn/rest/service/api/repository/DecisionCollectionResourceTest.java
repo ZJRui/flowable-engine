@@ -30,20 +30,55 @@ public class DecisionCollectionResourceTest extends BaseSpringDmnRestTestCase {
     public void testGetDecisions() throws Exception {
 
         try {
-            DmnDeployment firstDeployment = dmnRepositoryService.createDeployment().name("Deployment 1").addClasspathResource("org/flowable/dmn/rest/service/api/repository/simple.dmn").category("cat one")
+            DmnDeployment firstDeployment = dmnRepositoryService.createDeployment()
+                    .name("Deployment 1")
+                    .parentDeploymentId("parent1")
+                    .addClasspathResource("org/flowable/dmn/rest/service/api/repository/simple.dmn")
+                    .category("cat one")
                     .deploy();
 
-            DmnDeployment secondDeployment = dmnRepositoryService.createDeployment().name("Deployment 2").addClasspathResource("org/flowable/dmn/rest/service/api/repository/simple.dmn").category("cat two")
+            DmnDeployment secondDeployment = dmnRepositoryService.createDeployment()
+                    .name("Deployment 2")
+                    .addClasspathResource("org/flowable/dmn/rest/service/api/repository/simple.dmn")
+                    .parentDeploymentId("parent2")
+                    .category("cat two")
                     .addClasspathResource("org/flowable/dmn/rest/service/api/repository/simple-2.dmn").deploy();
 
-            DmnDecision firstDefinition = dmnRepositoryService.createDecisionQuery().decisionKey("decision").deploymentId(firstDeployment.getId()).singleResult();
+            DmnDeployment thirdDeployment = dmnRepositoryService.createDeployment()
+                    .name("Deployment 3")
+                    .addClasspathResource("org/flowable/dmn/rest/service/api/repository/decision_service-1.dmn")
+                    .parentDeploymentId("parent3")
+                    .category("cat three")
+                    .deploy();
 
-            DmnDecision latestDefinition = dmnRepositoryService.createDecisionQuery().decisionKey("decision").deploymentId(secondDeployment.getId()).singleResult();
+            DmnDeployment fourthDeployment = dmnRepositoryService.createDeployment()
+                    .name("Deployment 4")
+                    .addClasspathResource("org/flowable/dmn/rest/service/api/repository/decision_service-1.dmn")
+                    .parentDeploymentId("parent4")
+                    .category("cat four")
+                    .addClasspathResource("org/flowable/dmn/rest/service/api/repository/decision_service-2.dmn").deploy();
 
-            DmnDecision decisionTwo = dmnRepositoryService.createDecisionQuery().decisionKey("decisionTwo").deploymentId(secondDeployment.getId()).singleResult();
+            DmnDecision firstDefinition = dmnRepositoryService.createDecisionQuery().decisionKey("decision").deploymentId(firstDeployment.getId())
+                    .singleResult();
+
+            DmnDecision latestDefinition = dmnRepositoryService.createDecisionQuery().decisionKey("decision").deploymentId(secondDeployment.getId())
+                    .singleResult();
+
+            DmnDecision decisionTwo = dmnRepositoryService.createDecisionQuery().decisionKey("decisionTwo").deploymentId(secondDeployment.getId())
+                    .singleResult();
+
+            DmnDecision decisionServiceOne = dmnRepositoryService.createDecisionQuery().decisionKey("decisionServiceOne").deploymentId(thirdDeployment.getId())
+                    .singleResult();
+
+            DmnDecision latestDecisionServiceOne = dmnRepositoryService.createDecisionQuery().decisionKey("decisionServiceOne")
+                    .deploymentId(fourthDeployment.getId()).singleResult();
+
+            DmnDecision decisionServiceTwo = dmnRepositoryService.createDecisionQuery().decisionKey("evaluateMortgageRequestService")
+                    .deploymentId(fourthDeployment.getId()).singleResult();
 
             String baseUrl = DmnRestUrls.createRelativeResourceUrl(DmnRestUrls.URL_DECISION_COLLECTION);
-            assertResultsPresentInDataResponse(baseUrl, firstDefinition.getId(), decisionTwo.getId(), latestDefinition.getId());
+            assertResultsPresentInDataResponse(baseUrl, firstDefinition.getId(), decisionTwo.getId(), latestDefinition.getId(), decisionServiceOne.getId(),
+                    latestDecisionServiceOne.getId(), decisionServiceTwo.getId());
 
             // Verify
 
@@ -51,13 +86,22 @@ public class DecisionCollectionResourceTest extends BaseSpringDmnRestTestCase {
             String url = baseUrl + "?name=" + encode("Full Decision Two");
             assertResultsPresentInDataResponse(url, decisionTwo.getId());
 
+            url = baseUrl + "?name=" + encode("Evaluate Mortgage Request Service");
+            assertResultsPresentInDataResponse(url, decisionServiceTwo.getId());
+
             // Test nameLike filtering
             url = baseUrl + "?nameLike=" + encode("Full Decision Tw%");
             assertResultsPresentInDataResponse(url, decisionTwo.getId());
 
+            url = baseUrl + "?nameLike=" + encode("Evaluate Mortgage Request S%");
+            assertResultsPresentInDataResponse(url, decisionServiceTwo.getId());
+
             // Test key filtering
             url = baseUrl + "?key=decisionTwo";
             assertResultsPresentInDataResponse(url, decisionTwo.getId());
+
+            url = baseUrl + "?key=evaluateMortgageRequestService";
+            assertResultsPresentInDataResponse(url, decisionServiceTwo.getId());
 
             // Test returning multiple versions for the same key
             url = baseUrl + "?key=decision";
@@ -77,17 +121,37 @@ public class DecisionCollectionResourceTest extends BaseSpringDmnRestTestCase {
 
             // Test version filtering
             url = baseUrl + "?version=2";
-            assertResultsPresentInDataResponse(url, latestDefinition.getId());
+            assertResultsPresentInDataResponse(url, latestDefinition.getId(), latestDecisionServiceOne.getId());
 
             // Test latest filtering
             url = baseUrl + "?latest=true";
-            assertResultsPresentInDataResponse(url, latestDefinition.getId(), decisionTwo.getId());
+            assertResultsPresentInDataResponse(url, latestDefinition.getId(), decisionTwo.getId(), latestDecisionServiceOne.getId(),
+                    decisionServiceTwo.getId());
             url = baseUrl + "?latest=false";
-            assertResultsPresentInDataResponse(url, firstDefinition.getId(), latestDefinition.getId(), decisionTwo.getId());
+            assertResultsPresentInDataResponse(url, firstDefinition.getId(), latestDefinition.getId(), decisionTwo.getId(), decisionServiceOne.getId(),
+                    latestDecisionServiceOne.getId(), decisionServiceTwo.getId());
 
             // Test deploymentId
             url = baseUrl + "?deploymentId=" + secondDeployment.getId();
             assertResultsPresentInDataResponse(url, latestDefinition.getId(), decisionTwo.getId());
+
+            // Test deploymentId
+            url = baseUrl + "?deploymentId=" + fourthDeployment.getId();
+            assertResultsPresentInDataResponse(url, latestDecisionServiceOne.getId(), decisionServiceTwo.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent2";
+            assertResultsPresentInDataResponse(url, latestDefinition.getId(), decisionTwo.getId());
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent1";
+            assertResultsPresentInDataResponse(url, firstDefinition.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent4";
+            assertResultsPresentInDataResponse(url, latestDecisionServiceOne.getId(), decisionServiceTwo.getId());
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent3";
+            assertResultsPresentInDataResponse(url, decisionServiceOne.getId());
         } finally {
             // Always cleanup any created deployments, even if the test failed
             List<DmnDeployment> deployments = dmnRepositoryService.createDeploymentQuery().list();

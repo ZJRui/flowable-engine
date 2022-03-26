@@ -275,6 +275,11 @@
     delete from ${prefix}ACT_HI_ACTINST where PROC_INST_ID_ is not null and PROC_INST_ID_ != '' and 
     PROC_INST_ID_ NOT IN (select PROCINST.ID_ from ${prefix}ACT_HI_PROCINST PROCINST)
   </delete>
+
+  <delete id="bulkDeleteHistoricActivityInstancesForNonExistingProcessInstances" databaseId="hsql" parameterType="java.util.Map">
+    delete from ${prefix}ACT_HI_ACTINST where PROC_INST_ID_ is not null and PROC_INST_ID_ != '' and
+    PROC_INST_ID_ NOT IN (select PROCINST.ID_ from ${prefix}ACT_HI_PROCINST PROCINST)
+  </delete>
   
   <sql id="selectHistoricActivityInstancesByQueryCriteriaSql">
     from ${prefix}ACT_HI_ACTINST ${queryTablePrefixSelect}
@@ -300,7 +305,7 @@
       <if test="activityType != null">
         and ${queryTablePrefix}ACT_TYPE_ = #{activityType}
       </if>
-      <if test="activityTypes != null and !activityTypes.isEmpty()">
+      <if test="activityTypes != null and !activityTypes.empty">
         and ${queryTablePrefix}ACT_TYPE_ in
          <foreach item="item" index="index" collection="activityTypes" open="(" separator="," close=")">
               #{item}
@@ -324,7 +329,7 @@
       <if test="tenantId != null">
         and ${queryTablePrefix}TENANT_ID_ = #{tenantId}
       </if>
-      <if test="tenantIds != null &amp;&amp; !tenantIds.isEmpty()">
+      <if test="tenantIds != null &amp;&amp; !tenantIds.empty">
         and ${queryTablePrefix}TENANT_ID_ in
         <foreach item="tenantId" index="index" collection="tenantIds" open="(" separator="," close=")">
             #{tenantId}

@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.flowable.eventregistry.api.ChannelModelProcessor;
+import org.flowable.eventregistry.api.ChannelProcessingPipelineManager;
 import org.flowable.eventregistry.api.EventRegistry;
 import org.flowable.eventregistry.api.EventRepositoryService;
 import org.flowable.eventregistry.model.ChannelModel;
@@ -39,6 +40,10 @@ import org.springframework.beans.factory.config.BeanExpressionResolver;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.EmbeddedValueResolver;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.expression.StandardBeanExpressionResolver;
 import org.springframework.kafka.annotation.KafkaListenerAnnotationBeanPostProcessor;
 import org.springframework.kafka.config.KafkaListenerContainerFactory;
@@ -52,10 +57,12 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * @author Filip Hrisafov
  */
-public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, ChannelModelProcessor {
+public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, ApplicationContextAware, ApplicationListener<ContextRefreshedEvent>, ChannelModelProcessor {
 
     public static final String CHANNEL_ID_PREFIX = "org.flowable.eventregistry.kafka.ChannelKafkaListenerEndpointContainer#";
 
@@ -70,11 +77,18 @@ public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, Channe
     protected KafkaListenerContainerFactory<?> containerFactory;
 
     protected BeanFactory beanFactory;
+    protected ApplicationContext applicationContext;
+    protected boolean contextRefreshed;
+    protected ObjectMapper objectMapper;
 
     protected BeanExpressionResolver resolver = new StandardBeanExpressionResolver();
 
     protected StringValueResolver embeddedValueResolver;
     protected BeanExpressionContext expressionContext;
+    
+    public KafkaChannelDefinitionProcessor(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public boolean canProcess(ChannelModel channelModel) {
@@ -83,7 +97,8 @@ public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, Channe
 
     @Override
     public void registerChannelModel(ChannelModel channelModel, String tenantId, EventRegistry eventRegistry, 
-                    EventRepositoryService eventRepositoryService, boolean fallbackToDefaultTenant) {
+            EventRepositoryService eventRepositoryService, ChannelProcessingPipelineManager eventSerializerManager, 
+            boolean fallbackToDefaultTenant) {
         
         if (channelModel instanceof KafkaInboundChannelModel) {
             KafkaInboundChannelModel kafkaChannelModel = (KafkaInboundChannelModel) channelModel;
@@ -121,8 +136,9 @@ public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, Channe
     protected void processOutboundDefinition(KafkaOutboundChannelModel channelModel) {
         String topic = channelModel.getTopic();
         if (channelModel.getOutboundEventChannelAdapter() == null && StringUtils.hasText(topic)) {
+            String resolvedTopic = resolve(topic);
             channelModel.setOutboundEventChannelAdapter(new KafkaOperationsOutboundEventChannelAdapter(
-                            kafkaOperations, topic, channelModel.getRecordKey()));
+                            kafkaOperations, resolvedTopic, channelModel.getRecordKey()));
         }
     }
 
@@ -264,11 +280,13 @@ public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, Channe
         Assert.hasText(endpoint.getId(), "Endpoint id must be set");
 
         Assert.state(this.endpointRegistry != null, "No KafkaListenerEndpointRegistry set");
-        // There is no need to use a specific flag for starting immediately for Kafka since the KafkaListenerEndpointRegistry
-        // handles the start of the containers differently then the JMS and Rabbit ones.
-        // It has its own state for whether it is running or not and does not depend on the underlying containers.
+        // We need to start the container immediately only if the endpoint registry is already running,
+        // otherwise we should not start it and leave it to the registry to start all the containers when it starts.
+        // We also need to start immediately if the application context has already been refreshed.
+        // This also makes sure that we are not going to start our listener earlier than the KafkaListenerEndpointRegistry
+        boolean startImmediately = contextRefreshed || endpointRegistry.isRunning();
         logger.info("Registering endpoint {}", endpoint);
-        endpointRegistry.registerListenerContainer(endpoint, resolveContainerFactory(endpoint, factory), true);
+        endpointRegistry.registerListenerContainer(endpoint, resolveContainerFactory(endpoint, factory), startImmediately);
         logger.info("Finished registering endpoint {}", endpoint);
     }
 
@@ -336,6 +354,18 @@ public class KafkaChannelDefinitionProcessor implements BeanFactoryAware, Channe
             this.embeddedValueResolver = new EmbeddedValueResolver((ConfigurableBeanFactory) beanFactory);
             this.resolver = ((ConfigurableListableBeanFactory) beanFactory).getBeanExpressionResolver();
             this.expressionContext = new BeanExpressionContext((ConfigurableListableBeanFactory) beanFactory, null);
+        }
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
+    @Override
+    public void onApplicationEvent(ContextRefreshedEvent event) {
+        if (event.getApplicationContext() == this.applicationContext) {
+            this.contextRefreshed = true;
         }
     }
 

@@ -60,7 +60,7 @@ public class ResetExpiredJobsRunnable implements Runnable {
 
     @Override
     public synchronized void run() {
-        LOGGER.info("starting to reset expired jobs for engine {}", asyncExecutor.getJobServiceConfiguration().getEngineName());
+        LOGGER.info("starting to reset expired jobs for engine {}", getEngineName());
         Thread.currentThread().setName(name);
 
         while (!isInterrupted) {
@@ -79,7 +79,7 @@ public class ResetExpiredJobsRunnable implements Runnable {
 
             } catch (InterruptedException e) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("async reset expired jobs wait interrupted");
+                    LOGGER.debug("async reset expired jobs wait for engine {} interrupted", getEngineName());
                 }
             } finally {
                 isWaiting.set(false);
@@ -102,15 +102,14 @@ public class ResetExpiredJobsRunnable implements Runnable {
     protected void resetJobs(JobInfoEntityManager<? extends JobInfoEntity> jobEntityManager) {
 
         boolean hasExpiredJobs = true;
-        while (hasExpiredJobs) {
+        while (hasExpiredJobs && !isInterrupted) {
 
             try {
                 JobServiceConfiguration jobServiceConfiguration = asyncExecutor.getJobServiceConfiguration();
                 List<? extends JobInfoEntity> expiredJobs = jobServiceConfiguration.getCommandExecutor()
                         .execute(new FindExpiredJobsCmd(asyncExecutor.getResetExpiredJobsPageSize(), jobEntityManager, jobServiceConfiguration));
 
-                List<String> expiredJobIds = expiredJobs.stream().filter(j -> j.getLockExpirationTime() != null)
-                        .map(JobInfoEntity::getId).collect(Collectors.toList());
+                List<String> expiredJobIds = expiredJobs.stream().map(JobInfoEntity::getId).collect(Collectors.toList());
                 if (!expiredJobIds.isEmpty()) {
                     asyncExecutor.getJobServiceConfiguration().getCommandExecutor().execute(
                             new ResetExpiredJobsCmd(expiredJobIds, jobEntityManager, jobServiceConfiguration));
@@ -129,7 +128,7 @@ public class ResetExpiredJobsRunnable implements Runnable {
                     LOGGER.debug("Optimistic lock exception while resetting locked jobs for engine {}", asyncExecutor.getJobServiceConfiguration().getEngineName(), e);
 
                 } else {
-                    LOGGER.error("exception during resetting expired jobs: {} for engine {}", e.getMessage(), 
+                    LOGGER.warn("exception during resetting expired jobs: {} for engine {}", e.getMessage(),
                                     asyncExecutor.getJobServiceConfiguration().getEngineName(), e);
                     hasExpiredJobs = false; // will stop the loop
 
@@ -148,5 +147,15 @@ public class ResetExpiredJobsRunnable implements Runnable {
             }
         }
     }
-    
+
+    protected String getEngineName() {
+        return asyncExecutor.getJobServiceConfiguration().getEngineName();
+    }
+
+    public boolean isInterrupted() {
+        return isInterrupted;
+    }
+    public void setInterrupted(boolean interrupted) {
+        isInterrupted = interrupted;
+    }
 }

@@ -41,7 +41,8 @@
         CALLBACK_TYPE_,
         REFERENCE_ID_,
         REFERENCE_TYPE_,
-        PROPAGATED_STAGE_INST_ID_
+        PROPAGATED_STAGE_INST_ID_,
+        BUSINESS_STATUS_
       ) values (
         #{id ,jdbcType=VARCHAR},
         1, #{processInstanceId, jdbcType=VARCHAR},
@@ -61,7 +62,8 @@
         #{callbackType, jdbcType=VARCHAR},
         #{referenceId, jdbcType=VARCHAR},
         #{referenceType, jdbcType=VARCHAR},
-        #{propagatedStageInstanceId, jdbcType=VARCHAR}
+        #{propagatedStageInstanceId, jdbcType=VARCHAR},
+        #{businessStatus, jdbcType=VARCHAR}
       )
   </insert>
   
@@ -86,7 +88,8 @@
         CALLBACK_TYPE_,
         REFERENCE_ID_,
         REFERENCE_TYPE_,
-        PROPAGATED_STAGE_INST_ID_
+        PROPAGATED_STAGE_INST_ID_,
+        BUSINESS_STATUS_
       ) values
         <foreach collection="list" item="historicProcessInstance" index="index" separator=",">
           (
@@ -108,7 +111,8 @@
            #{historicProcessInstance.callbackType, jdbcType=VARCHAR},
            #{historicProcessInstance.referenceId, jdbcType=VARCHAR},
            #{historicProcessInstance.referenceType, jdbcType=VARCHAR},
-           #{historicProcessInstance.propagatedStageInstanceId, jdbcType=VARCHAR}
+           #{historicProcessInstance.propagatedStageInstanceId, jdbcType=VARCHAR},
+           #{historicProcessInstance.businessStatus, jdbcType=VARCHAR}
           )
          </foreach>
   </insert>
@@ -136,7 +140,8 @@
             CALLBACK_TYPE_,
             REFERENCE_ID_,
             REFERENCE_TYPE_,
-            PROPAGATED_STAGE_INST_ID_
+            PROPAGATED_STAGE_INST_ID_,
+            BUSINESS_STATUS_
           ) VALUES
               (
                #{historicProcessInstance.id ,jdbcType=VARCHAR},
@@ -157,7 +162,8 @@
                #{historicProcessInstance.callbackType, jdbcType=VARCHAR},
                #{historicProcessInstance.referenceId, jdbcType=VARCHAR},
                #{historicProcessInstance.referenceType, jdbcType=VARCHAR},
-               #{historicProcessInstance.propagatedStageInstanceId, jdbcType=VARCHAR}
+               #{historicProcessInstance.propagatedStageInstanceId, jdbcType=VARCHAR},
+               #{historicProcessInstance.businessStatus, jdbcType=VARCHAR}
               )
        </foreach>
     SELECT * FROM dual
@@ -206,7 +212,10 @@
           REFERENCE_TYPE_ = #{referenceType, jdbcType=VARCHAR},
         </if>
         <if test="originalPersistentState.propagatedStageInstanceId != propagatedStageInstanceId">
-            PROPAGATED_STAGE_INST_ID_ = #{propagatedStageInstanceId, jdbcType=VARCHAR},
+          PROPAGATED_STAGE_INST_ID_ = #{propagatedStageInstanceId, jdbcType=VARCHAR},
+        </if>
+        <if test="originalPersistentState.businessStatus != businessStatus">
+          BUSINESS_STATUS_ = #{businessStatus, jdbcType=VARCHAR},
         </if>
       </set>
     where ID_ = #{id}
@@ -233,6 +242,7 @@
     <result property="revision" column="REV_" jdbcType="INTEGER"/>
     <result property="processInstanceId" column="PROC_INST_ID_" jdbcType="VARCHAR" />
     <result property="businessKey" column="BUSINESS_KEY_" jdbcType="VARCHAR"/>
+    <result property="businessStatus" column="BUSINESS_STATUS_" jdbcType="VARCHAR"/>
     <result property="processDefinitionId" column="PROC_DEF_ID_" jdbcType="VARCHAR" />
     <result property="processDefinitionName" column="PROC_DEF_NAME_" jdbcType="VARCHAR" /> 
     <result property="processDefinitionKey" column="PROC_DEF_KEY_" jdbcType="VARCHAR" />
@@ -260,6 +270,7 @@
     <result property="revision" column="REV_" jdbcType="INTEGER"/>
     <result property="processInstanceId" column="PROC_INST_ID_" jdbcType="VARCHAR" />
     <result property="businessKey" column="BUSINESS_KEY_" jdbcType="VARCHAR"/>
+    <result property="businessStatus" column="BUSINESS_STATUS_" jdbcType="VARCHAR"/>
     <result property="processDefinitionId" column="PROC_DEF_ID_" jdbcType="VARCHAR" />
     <result property="processDefinitionName" column="PROC_DEF_NAME_" jdbcType="VARCHAR" /> 
     <result property="processDefinitionKey" column="PROC_DEF_KEY_" jdbcType="VARCHAR" />
@@ -407,7 +418,7 @@
       <if test="processDefinitionKey != null">
         and DEF.KEY_ = #{processDefinitionKey}
       </if>
-      <if test="processDefinitionKeyIn != null &amp;&amp; processDefinitionKeyIn.size() &gt; 0">
+      <if test="processDefinitionKeyIn != null &amp;&amp; !processDefinitionKeyIn.empty">
         and DEF.KEY_ IN
         <foreach item="definition" index="index" collection="processDefinitionKeyIn"
                  open="(" separator="," close=")">
@@ -426,7 +437,7 @@
       <if test="deploymentId != null">
         and DEF.DEPLOYMENT_ID_ = #{deploymentId}
       </if>
-      <if test="deploymentIds != null &amp;&amp; deploymentIds.size() &gt; 0">
+      <if test="deploymentIds != null &amp;&amp; !deploymentIds.empty">
         and DEF.DEPLOYMENT_ID_ IN
         <foreach item="deployment" index="index" collection="deploymentIds" 
                  open="(" separator="," close=")">
@@ -452,6 +463,12 @@
                     from ${prefix}ACT_HI_VARINST V
                     <where>
                         RES.PROC_INST_ID_ = V.PROC_INST_ID_
+                        <if test="!queryVariableValue.local">
+                            and V.PROC_INST_ID_ = V.EXECUTION_ID_
+                        </if>
+                        <if test="queryVariableValue.local">
+                            and V.PROC_INST_ID_ &lt;&gt; V.EXECUTION_ID_
+                        </if>
                         <if test="queryVariableValue.name != null">
                             <!-- Match-all variable-names when name is null -->
                             and V.NAME_= #{queryVariableValue.name}
@@ -535,7 +552,7 @@
           <if test="orQueryObject.processDefinitionKey != null">
             or DEF.KEY_ = #{orQueryObject.processDefinitionKey}
           </if>
-          <if test="orQueryObject.processDefinitionKeyIn != null &amp;&amp; orQueryObject.processDefinitionKeyIn.size() &gt; 0">
+          <if test="orQueryObject.processDefinitionKeyIn != null &amp;&amp; !orQueryObject.processDefinitionKeyIn.empty">
             or DEF.KEY_ IN
             <foreach item="definition" index="index" collection="orQueryObject.processDefinitionKeyIn"
                      open="(" separator="," close=")">
@@ -554,7 +571,7 @@
           <if test="orQueryObject.deploymentId != null">
             or DEF.DEPLOYMENT_ID_ = #{orQueryObject.deploymentId}
           </if>
-          <if test="orQueryObject.deploymentIds != null &amp;&amp; orQueryObject.deploymentIds.size() &gt; 0">
+          <if test="orQueryObject.deploymentIds != null &amp;&amp; !orQueryObject.deploymentIds.empty">
             or DEF.DEPLOYMENT_ID_ IN
             <foreach item="deployment" index="index" collection="orQueryObject.deploymentIds" 
                      open="(" separator="," close=")">
@@ -585,6 +602,12 @@
                         from ${prefix}ACT_HI_VARINST V
                         <where>
                             RES.PROC_INST_ID_ = PROC_INST_ID_
+                            <if test="!queryVariableValue.local">
+                                and V.PROC_INST_ID_ = V.EXECUTION_ID_
+                            </if>
+                            <if test="queryVariableValue.local">
+                                and V.PROC_INST_ID_ &lt;&gt; V.EXECUTION_ID_
+                            </if>
                             <if test="queryVariableValue.name != null">
                                 <!-- Match-all variable-names when name is null -->
                                 and V.NAME_= #{queryVariableValue.name}
@@ -679,7 +702,7 @@
     <if test="processInstanceId != null">
         ${queryTablePrefix}PROC_INST_ID_ = #{processInstanceId}
       </if>
-      <if test="processInstanceIds != null and !processInstanceIds.isEmpty()">
+      <if test="processInstanceIds != null and !processInstanceIds.empty">
         and ${queryTablePrefix}PROC_INST_ID_ in
         <foreach item="item" index="index" collection="processInstanceIds" open="(" separator="," close=")">
           #{item}
@@ -693,6 +716,12 @@
       </if>
       <if test="businessKeyLike != null">
         and ${queryTablePrefix}BUSINESS_KEY_ like #{businessKeyLike}${wildcardEscapeClause}
+      </if>
+      <if test="businessStatus != null">
+        and ${queryTablePrefix}BUSINESS_STATUS_ = #{businessStatus}
+      </if>
+      <if test="businessStatusLike != null">
+        and ${queryTablePrefix}BUSINESS_STATUS_ like #{businessStatusLike}${wildcardEscapeClause}
       </if>
       <if test="startedBefore != null">
         and ${queryTablePrefix}START_TIME_ &lt;= #{startedBefore}
@@ -771,6 +800,9 @@
       <if test="callbackType != null">
         and ${queryTablePrefix}CALLBACK_TYPE_ = #{callbackType}
       </if>
+      <if test="withoutCallbackId">
+        and ${queryTablePrefix}CALLBACK_ID_ is null
+      </if>
       <if test="referenceId != null">
           and ${queryTablePrefix}REFERENCE_ID_ = #{referenceId}
       </if>
@@ -801,7 +833,7 @@
       <if test="orQueryObject.processInstanceId != null">
         ${queryTablePrefix}PROC_INST_ID_ = #{orQueryObject.processInstanceId}
       </if>
-      <if test="orQueryObject.processInstanceIds != null and !orQueryObject.processInstanceIds.isEmpty()">
+      <if test="orQueryObject.processInstanceIds != null and !orQueryObject.processInstanceIds.empty">
         or ${queryTablePrefix}PROC_INST_ID_ in
         <foreach item="item" index="index" collection="orQueryObject.processInstanceIds" open="(" separator="," close=")">
           #{item}
@@ -815,6 +847,12 @@
       </if>
       <if test="orQueryObject.businessKeyLike != null">
         or ${queryTablePrefix}BUSINESS_KEY_ like #{orQueryObject.businessKeyLike}${wildcardEscapeClause}
+      </if>
+      <if test="orQueryObject.businessStatus != null">
+        or ${queryTablePrefix}BUSINESS_STATUS_ = #{orQueryObject.businessStatus}
+      </if>
+      <if test="orQueryObject.businessStatusLike != null">
+        or ${queryTablePrefix}BUSINESS_STATUS_ like #{orQueryObject.businessStatusLike}${wildcardEscapeClause}
       </if>
       <if test="orQueryObject.startedBefore != null">
         or ${queryTablePrefix}START_TIME_ &lt;= #{orQueryObject.startedBefore}
@@ -892,6 +930,9 @@
       </if>
       <if test="orQueryObject.callbackType != null">
         or ${queryTablePrefix}CALLBACK_TYPE_ = #{orQueryObject.callbackType}
+      </if>
+      <if test="orQueryObject.withoutCallbackId">
+          or ${queryTablePrefix}CALLBACK_ID_ is null
       </if>
       <if test="orQueryObject.referenceId != null">
           or ${queryTablePrefix}REFERENCE_ID_ = #{orQueryObject.referenceId}
