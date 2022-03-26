@@ -144,6 +144,8 @@ public class SignalEventTest extends PluggableFlowableTestCase {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("catchSignal");
 
         assertThat(createEventSubscriptionQuery().processInstanceId(processInstance.getId()).count()).isEqualTo(1);
+        assertThat(createEventSubscriptionQuery().withoutProcessInstanceId().count()).isZero();
+        assertThat(createEventSubscriptionQuery().withoutScopeId().count()).isEqualTo(1);
         assertThat(runtimeService.createProcessInstanceQuery().count()).isEqualTo(1);
 
         Map<String, Object> signalVariableMap = new HashMap<>();
@@ -993,6 +995,47 @@ public class SignalEventTest extends PluggableFlowableTestCase {
         assertSignalEventSubscriptions("actualBoundarySignalValue", "eventSubprocessSignal", "startSignal");
         runtimeService.signalEventReceived("actualBoundarySignalValue");
     }
+
+    @Test
+    @Deployment
+    public void testSignalSubscriptionsRecreatedOnDeploymentDelete() {
+        runtimeService.signalEventReceived("The Signal");
+        Task task = taskService.createTaskQuery().singleResult();
+        assertThat(task.getName()).isEqualTo("Task in process A");
+
+        String deploymentId = repositoryService.createDeployment()
+                .addClasspathResource(
+                        "org/flowable/engine/test/bpmn/event/signal/SignalEventTest.testSignalSubscriptionsRecreatedOnDeploymentDeleteV2.bpmn20.xml")
+                .deploy()
+                .getId();
+
+        runtimeService.signalEventReceived("The Signal");
+
+        assertThat(taskService.createTaskQuery().list())
+                .extracting(Task::getName)
+                .containsExactlyInAnyOrder(
+                        "Task in process A",
+                        "Task in process A v2"
+                );
+
+        repositoryService.deleteDeployment(deploymentId, true);
+
+        assertThat(taskService.createTaskQuery().list())
+                .extracting(Task::getName)
+                .containsExactlyInAnyOrder(
+                        "Task in process A"
+                );
+
+        runtimeService.signalEventReceived("The Signal");
+
+        assertThat(taskService.createTaskQuery().list())
+                .extracting(Task::getName)
+                .containsExactlyInAnyOrder(
+                        "Task in process A",
+                        "Task in process A"
+                );
+    }
+
 
     protected void assertSignalEventSubscriptions(String ... names) {
         Tuple[] tuples = new Tuple[names.length];

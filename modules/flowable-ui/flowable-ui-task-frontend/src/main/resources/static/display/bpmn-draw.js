@@ -235,6 +235,13 @@ function _drawSendEventServiceTask(element)
     _addHoverLogic(element, "rect", ACTIVITY_STROKE_COLOR);
 }
 
+function _drawExternalWorkerServiceTask(element)
+{
+	_drawTask(element);
+	_drawServiceTaskIcon(paper, element.x + 4, element.y + 4);
+	_addHoverLogic(element, "rect", ACTIVITY_STROKE_COLOR);
+}
+
 function _drawHttpServiceTask(element)
 {
     _drawTask(element);
@@ -712,8 +719,7 @@ function _drawFlow(flow){
 
 	if (line == undefined) return;
 
-	if (flow.type == "connection" && flow.conditions)
-	{
+	if (flow.type == "connection" && flow.conditions) {
 		var middleX = (line.x1 + line.x2) / 2;
 		var middleY = (line.y1 + line.y2) / 2;
 		var image = paper.image("../editor/images/condition-flow.png", middleX - 8, middleY - 8, 16, 16);

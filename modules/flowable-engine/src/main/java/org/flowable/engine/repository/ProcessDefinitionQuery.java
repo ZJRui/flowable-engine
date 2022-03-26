@@ -59,6 +59,12 @@ public interface ProcessDefinitionQuery extends Query<ProcessDefinitionQuery, Pr
     ProcessDefinitionQuery processDefinitionNameLike(String processDefinitionNameLike);
 
     /**
+     * Only select process definitions where the name matches the given parameter, ignoring upper/lower case.
+     * The syntax that should be used is the same as in SQL, eg. %test%
+     */
+    ProcessDefinitionQuery processDefinitionNameLikeIgnoreCase(String nameLikeIgnoreCase);
+
+    /**
      * Only select process definitions that are deployed in a deployment with the given deployment id
      */
     ProcessDefinitionQuery deploymentId(String deploymentId);
@@ -67,6 +73,11 @@ public interface ProcessDefinitionQuery extends Query<ProcessDefinitionQuery, Pr
      * Select process definitions that are deployed in deployments with the given set of ids
      */
     ProcessDefinitionQuery deploymentIds(Set<String> deploymentIds);
+
+    /**
+     * Only select process definitions that are deployed in a deployment with the given parent deployment id
+     */
+    ProcessDefinitionQuery parentDeploymentId(String deploymentId);
 
     /**
      * Only select process definition with the given key.

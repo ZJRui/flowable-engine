@@ -4,7 +4,7 @@
 
 	<property file="${user.home}/.flowable/build.properties" />
 
-	<property name="flowable.version" value="6.7.0-SNAPSHOT" />
+	<property name="flowable.version" value="6.7.3-SNAPSHOT" />
 	<property name="target.distro.root" value="target/zip/flowable-${flowable.version}" />
 	<property name="target.docs.root" value="${target.distro.root}/docs" />
 	<property name="target.newsite.root" value="target/website" />
@@ -134,6 +134,12 @@
             </fileset>
 			<fileset dir="../modules/flowable-cmmn-api/target">
                 <include name="flowable-cmmn-api-*.jar" />
+            </fileset>
+			<fileset dir="../modules/flowable-cmmn-cdi/target">
+                <include name="flowable-cmmn-cdi-*.jar" />
+            </fileset>
+			<fileset dir="../modules/flowable-case-validation/target">
+                <include name="flowable-case-validation-*.jar" />
             </fileset>
 			<fileset dir="../modules/flowable-cmmn-converter/target">
                 <include name="flowable-cmmn-converter-*.jar" />

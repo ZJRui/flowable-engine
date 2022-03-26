@@ -19,7 +19,9 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -324,17 +326,14 @@ public class HistoryServiceTest extends PluggableFlowableTestCase {
 
         HistoryTestHelper.waitForJobExecutorToProcessAllHistoryJobs(processEngineConfiguration, managementService, 7000, 200);
 
-        List<String> deploymentIds = new ArrayList<>();
-        deploymentIds.add(deployment.getId());
-        deploymentIds.add("invalid");
+        List<String> deploymentIds = Arrays.asList(deployment.getId(), "invalid");
         HistoricProcessInstanceQuery processInstanceQuery = historyService.createHistoricProcessInstanceQuery().deploymentIdIn(deploymentIds);
         assertThat(processInstanceQuery.count()).isEqualTo(5);
 
         List<HistoricProcessInstance> processInstances = processInstanceQuery.list();
         assertThat(processInstances).hasSize(5);
 
-        deploymentIds = new ArrayList<>();
-        deploymentIds.add("invalid");
+        deploymentIds = Collections.singletonList("invalid");
         processInstanceQuery = historyService.createHistoricProcessInstanceQuery().deploymentIdIn(deploymentIds);
         assertThat(processInstanceQuery.count()).isZero();
     }
@@ -508,6 +507,46 @@ public class HistoryServiceTest extends PluggableFlowableTestCase {
 
         taskInstanceQuery = historyService.createHistoricTaskInstanceQuery().taskDefinitionKey("theTask").or().deploymentIdIn(deploymentIds).endOr();
         assertThat(taskInstanceQuery.count()).isZero();
+    }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml", "org/flowable/engine/test/api/runtime/oneTaskProcess2.bpmn20.xml" })
+    public void testHistoricTaskInstanceQueryWithoutProcessInstanceId() {
+        for (int i = 0; i < 4; i++) {
+            runtimeService.startProcessInstanceByKey("oneTaskProcess", String.valueOf(i));
+        }
+        runtimeService.startProcessInstanceByKey("oneTaskProcess2", "1");
+
+        HistoryTestHelper.waitForJobExecutorToProcessAllHistoryJobs(processEngineConfiguration, managementService, 7000, 200);
+
+        HistoricTaskInstanceQuery taskInstanceQuery = historyService.createHistoricTaskInstanceQuery().withoutProcessInstanceId();
+        assertThat(taskInstanceQuery.count()).isZero();
+
+        List<HistoricTaskInstance> taskInstances = taskInstanceQuery.list();
+        assertThat(taskInstances).hasSize(0);
+    }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml", "org/flowable/engine/test/api/runtime/oneTaskProcess2.bpmn20.xml" })
+    public void testHistoricTaskInstanceQueryWithoutScopeId() {
+        for (int i = 0; i < 4; i++) {
+            runtimeService.startProcessInstanceByKey("oneTaskProcess", String.valueOf(i));
+        }
+        runtimeService.startProcessInstanceByKey("oneTaskProcess2", "1");
+
+        HistoryTestHelper.waitForJobExecutorToProcessAllHistoryJobs(processEngineConfiguration, managementService, 7000, 200);
+
+        HistoricTaskInstanceQuery taskInstanceQuery = historyService.createHistoricTaskInstanceQuery().withoutScopeId();
+        assertThat(taskInstanceQuery.count()).isEqualTo(5);
+
+        List<HistoricTaskInstance> taskInstances = taskInstanceQuery.list();
+        assertThat(taskInstances).hasSize(5);
+        
+        taskInstanceQuery = historyService.createHistoricTaskInstanceQuery().withoutScopeId().processDefinitionKey("oneTaskProcess2");
+        assertThat(taskInstanceQuery.count()).isEqualTo(1);
+
+        taskInstances = taskInstanceQuery.list();
+        assertThat(taskInstances).hasSize(1);
     }
     
     @Test
@@ -689,9 +728,12 @@ public class HistoryServiceTest extends PluggableFlowableTestCase {
 
         assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("rootValue", "test").count()).isEqualTo(1);
 
-        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue1", "Receive Payment").count()).isEqualTo(1);
-        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue1", "Ship Order").count()).isEqualTo(1);
-        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue2", "test").count()).isEqualTo(1);
+        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue1", "Receive Payment").count()).isZero();
+        assertThat(historyService.createHistoricProcessInstanceQuery().localVariableValueEquals("parallelValue1", "Receive Payment").count()).isEqualTo(1);
+        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue1", "Ship Order").count()).isZero();
+        assertThat(historyService.createHistoricProcessInstanceQuery().localVariableValueEquals("parallelValue1", "Ship Order").count()).isEqualTo(1);
+        assertThat(historyService.createHistoricProcessInstanceQuery().variableValueEquals("parallelValue2", "test").count()).isZero();
+        assertThat(historyService.createHistoricProcessInstanceQuery().localVariableValueEquals("parallelValue2", "test").count()).isEqualTo(1);
     }
 
     /**

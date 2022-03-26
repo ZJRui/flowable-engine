@@ -25,6 +25,7 @@ import org.flowable.cmmn.api.runtime.PlanItemInstanceQuery;
 import org.flowable.cmmn.api.runtime.PlanItemInstanceTransitionBuilder;
 import org.flowable.cmmn.api.runtime.SignalEventListenerInstanceQuery;
 import org.flowable.cmmn.api.runtime.UserEventListenerInstanceQuery;
+import org.flowable.cmmn.api.runtime.VariableInstanceQuery;
 import org.flowable.common.engine.api.FlowableObjectNotFoundException;
 import org.flowable.entitylink.api.EntityLink;
 import org.flowable.eventsubscription.api.EventSubscriptionQuery;
@@ -183,6 +184,8 @@ public interface CmmnRuntimeService {
     void removeLocalVariable(String planItemInstanceId, String variableName);
     
     void removeLocalVariables(String planItemInstanceId, Collection<String> variableNames);
+    
+    VariableInstanceQuery createVariableInstanceQuery();
 
     /**
      * Set or change the name of the case instance.
@@ -325,5 +328,15 @@ public interface CmmnRuntimeService {
      *     new businessKey value
      */
     void updateBusinessKey(String caseInstanceId, String businessKey);
+    
+    /**
+     * Updates the business status for the provided case instance
+     *
+     * @param caseInstanceId
+     *     id of the case instance to set the business status, cannot be null
+     * @param businessStatus
+     *     new business status value
+     */
+    void updateBusinessStatus(String caseInstanceId, String businessStatus);
 
 }

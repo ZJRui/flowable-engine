@@ -19,6 +19,7 @@ import java.util.Set;
 
 import org.flowable.cmmn.api.repository.CaseDefinition;
 import org.flowable.cmmn.api.repository.CaseDefinitionQuery;
+import org.flowable.cmmn.engine.CmmnEngineConfiguration;
 import org.flowable.cmmn.engine.impl.util.CommandContextUtil;
 import org.flowable.common.engine.api.FlowableIllegalArgumentException;
 import org.flowable.common.engine.impl.interceptor.CommandContext;
@@ -37,8 +38,10 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
     protected String categoryNotEquals;
     protected String name;
     protected String nameLike;
+    protected String nameLikeIgnoreCase;
     protected String deploymentId;
     protected Set<String> deploymentIds;
+    protected String parentDeploymentId;
     protected String key;
     protected String keyLike;
     protected String resourceName;
@@ -56,6 +59,8 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
     protected String tenantId;
     protected String tenantIdLike;
     protected boolean withoutTenantId;
+    protected String locale;
+    protected boolean withLocalizationFallback;
 
     public CaseDefinitionQueryImpl() {
     }
@@ -131,6 +136,15 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
     }
 
     @Override
+    public CaseDefinitionQueryImpl caseDefinitionNameLikeIgnoreCase(String nameLikeIgnoreCase) {
+        if (nameLikeIgnoreCase == null) {
+            throw new FlowableIllegalArgumentException("nameLikeIgnoreCase is null");
+        }
+        this.nameLikeIgnoreCase = nameLikeIgnoreCase;
+        return this;
+    }
+
+    @Override
     public CaseDefinitionQueryImpl deploymentId(String deploymentId) {
         if (deploymentId == null) {
             throw new FlowableIllegalArgumentException("id is null");
@@ -147,6 +161,15 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
             throw new FlowableIllegalArgumentException("ids is an empty collection");
         }
         this.deploymentIds = deploymentIds;
+        return this;
+    }
+
+    @Override
+    public CaseDefinitionQuery parentDeploymentId(String parentDeploymentId) {
+        if (parentDeploymentId == null) {
+            throw new FlowableIllegalArgumentException("parentDeploymentId is null");
+        }
+        this.parentDeploymentId = parentDeploymentId;
         return this;
     }
 
@@ -258,7 +281,19 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
         this.withoutTenantId = true;
         return this;
     }
-    
+
+    @Override
+    public CaseDefinitionQuery locale(String locale) {
+        this.locale = locale;
+        return this;
+    }
+
+    @Override
+    public CaseDefinitionQuery withLocalizationFallback() {
+        this.withLocalizationFallback = true;
+        return this;
+    }
+
     public Collection<String> getAuthorizationGroups() {
         // if authorizationGroupsSet is true then startableByUserOrGroups was called
         // and the groups passed in that methods have precedence
@@ -336,7 +371,14 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
 
     @Override
     public List<CaseDefinition> executeList(CommandContext commandContext) {
-        return CommandContextUtil.getCaseDefinitionEntityManager(commandContext).findCaseDefinitionsByQueryCriteria(this);
+        List<CaseDefinition> caseDefinitionList = CommandContextUtil.getCaseDefinitionEntityManager(commandContext).findCaseDefinitionsByQueryCriteria(this);
+        CmmnEngineConfiguration cmmnEngineConfiguration = CommandContextUtil.getCmmnEngineConfiguration(commandContext);
+        if (cmmnEngineConfiguration.getCaseDefinitionLocalizationManager() != null) {
+            for (CaseDefinition caseDefinition : caseDefinitionList) {
+                cmmnEngineConfiguration.getCaseDefinitionLocalizationManager().localize(caseDefinition, locale, withLocalizationFallback);
+            }
+        }
+        return caseDefinitionList;
     }
 
     // getters ////////////////////////////////////////////
@@ -347,6 +389,10 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
 
     public Set<String> getDeploymentIds() {
         return deploymentIds;
+    }
+
+    public String getParentDeploymentId() {
+        return parentDeploymentId;
     }
 
     public String getId() {
@@ -363,6 +409,10 @@ public class CaseDefinitionQueryImpl extends AbstractQuery<CaseDefinitionQuery, 
 
     public String getNameLike() {
         return nameLike;
+    }
+
+    public String getNameLikeIgnoreCase() {
+        return nameLikeIgnoreCase;
     }
 
     public String getKey() {

@@ -12,7 +12,6 @@
  */
 package org.flowable.job.service.impl.asyncexecutor;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -82,10 +81,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
 
     protected AcquireAsyncJobsDueLifecycleListener lifecycleListener;
 
-    protected boolean globalAcquireLockEnabled;
-    protected String globalAcquireLockPrefix;
-    protected Duration lockWaitTime = Duration.ofMinutes(1);
-    protected Duration lockPollRate = Duration.ofMillis(500);
+    protected AcquireJobsRunnableConfiguration configuration;
     protected LockManager lockManager;
 
     protected volatile boolean isInterrupted;
@@ -93,13 +89,12 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
     protected final AtomicBoolean isWaiting = new AtomicBoolean(false);
 
     public AcquireAsyncJobsDueRunnable(String name, AsyncExecutor asyncExecutor, JobInfoEntityManager<? extends JobInfoEntity> jobEntityManager,
-            AcquireAsyncJobsDueLifecycleListener lifecycleListener, boolean globalAcquireLockEnabled, String globalAcquireLockPrefix) {
+            AcquireAsyncJobsDueLifecycleListener lifecycleListener, AcquireJobsRunnableConfiguration configuration) {
         this.name = name;
         this.asyncExecutor = asyncExecutor;
         this.jobEntityManager = jobEntityManager;
         this.lifecycleListener = lifecycleListener != null ? lifecycleListener : NOOP_LIFECYCLE_LISTENER;
-        this.globalAcquireLockEnabled = globalAcquireLockEnabled;
-        this.globalAcquireLockPrefix = globalAcquireLockPrefix;
+        this.configuration = configuration;
     }
 
     @Override
@@ -108,7 +103,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
         // Always initialize the lock manager, allowing to switch execution modes if needed
         this.lockManager = createLockManager(asyncExecutor.getJobServiceConfiguration().getCommandExecutor());
 
-        LOGGER.info("starting to acquire async jobs due");
+        LOGGER.info("starting to acquire async jobs due for engine {}", getEngineName());
         Thread.currentThread().setName(name);
 
         final CommandExecutor commandExecutor = asyncExecutor.getJobServiceConfiguration().getCommandExecutor();
@@ -116,23 +111,23 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
         long millisToWait = 0L;
         while (!isInterrupted) {
 
-            if (globalAcquireLockEnabled) {
+            if (configuration.isGlobalAcquireLockEnabled()) {
 
                 try {
-                    millisToWait = lockManager.waitForLockRunAndRelease(lockWaitTime, () -> executeAcquireCycle(commandExecutor));
+                    millisToWait = lockManager.waitForLockRunAndRelease(configuration.getLockWaitTime(), () -> executeAcquireCycle(commandExecutor));
                 } catch (Exception e) {
                     // Don't do anything, lock will be tried again next time
                     millisToWait = asyncExecutor.getDefaultAsyncJobAcquireWaitTimeInMillis();
 
                     if (!(e instanceof FlowableException)) { // FlowableExeption doesn't need to be logged, could be regular lock logic
-                        LOGGER.warn("Error while waiting for global acquire lock", e);
+                        LOGGER.warn("Error while waiting for global acquire lock for engine {}", getEngineName(), e);
                     }
                 }
 
                 if (millisToWait == 0) {
                     // Always wait when running with global acquire lock, to let other nodes have the ability to fill the queue
                     // If 0 was returned, it means there is still work to do, but we want to give other nodes a chance.
-                    millisToWait = lockPollRate.toMillis();
+                    millisToWait = configuration.getLockPollRate().toMillis();
                 }
 
             } else {
@@ -149,7 +144,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
     }
 
     protected LockManager createLockManager(CommandExecutor commandExecutor) {
-        return new LockManagerImpl(commandExecutor, globalAcquireLockPrefix + ACQUIRE_ASYNC_JOBS_GLOBAL_LOCK, lockPollRate, getEngineName());
+        return new LockManagerImpl(commandExecutor, configuration.getGlobalAcquireLockPrefix() + ACQUIRE_ASYNC_JOBS_GLOBAL_LOCK, configuration.getLockPollRate(), configuration.getLockForceAcquireAfter(), getEngineName());
     }
 
     protected long executeAcquireCycle(CommandExecutor commandExecutor) {
@@ -177,6 +172,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
     }
 
     protected long acquireAndExecuteJobs(CommandExecutor commandExecutor, int remainingCapacity) {
+        boolean globalAcquireLockEnabled = configuration.isGlobalAcquireLockEnabled();
         try {
             List<? extends JobInfoEntity> acquiredJobs;
             if (globalAcquireLockEnabled) {
@@ -208,7 +204,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
             lifecycleListener.optimistLockingException(getEngineName(), asyncExecutor.getMaxAsyncJobsDuePerAcquisition());
 
             if (globalAcquireLockEnabled) {
-                LOGGER.warn("Optimistic locking exception (using global acquire lock)", optimisticLockingException);
+                LOGGER.warn("Optimistic locking exception (using global acquire lock) for engine {}", getEngineName(), optimisticLockingException);
 
             } else {
                 LOGGER.debug(
@@ -221,7 +217,7 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
 
             }
         } catch (Throwable e) {
-            LOGGER.error("exception for engine {} during async job acquisition: {}", getEngineName(), e.getMessage(), e);
+            LOGGER.warn("exception for engine {} during async job acquisition: {}", getEngineName(), e.getMessage(), e);
         }
 
         return asyncExecutor.getDefaultAsyncJobAcquireWaitTimeInMillis();
@@ -287,27 +283,8 @@ public class AcquireAsyncJobsDueRunnable implements Runnable {
         this.lifecycleListener = lifecycleListener;
     }
 
-    public boolean isGlobalAcquireLockEnabled() {
-        return globalAcquireLockEnabled;
+    public void setConfiguration(AcquireJobsRunnableConfiguration configuration) {
+        this.configuration = configuration;
     }
 
-    public void setGlobalAcquireLockEnabled(boolean globalAcquireLockEnabled) {
-        this.globalAcquireLockEnabled = globalAcquireLockEnabled;
-    }
-
-    public Duration getLockWaitTime() {
-        return lockWaitTime;
-    }
-
-    public void setLockWaitTime(Duration lockWaitTime) {
-        this.lockWaitTime = lockWaitTime;
-    }
-
-    public Duration getLockPollRate() {
-        return lockPollRate;
-    }
-
-    public void setLockPollRate(Duration lockPollRate) {
-        this.lockPollRate = lockPollRate;
-    }
 }

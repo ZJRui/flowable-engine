@@ -40,6 +40,8 @@ public class CommandContextInterceptor extends AbstractCommandInterceptor {
     protected ObjectMapper objectMapper;
     protected Map<String, AbstractEngineConfiguration> engineConfigurations = new HashMap<>();
 
+    protected String engineCfgKey;
+
     public CommandContextInterceptor() {
     }
 
@@ -105,8 +107,13 @@ public class CommandContextInterceptor extends AbstractCommandInterceptor {
             commandContext.setReused(true);
         }
 
+
         try {
-            // Push on stack
+            // Push the current engine configuration key to a stack
+            // shared between nested calls that reuse the command context
+            commandContext.pushEngineCfgToStack(engineCfgKey);
+
+            // Push on command stack
             Context.setCommandContext(commandContext);
 
             return next.execute(config, command, commandExecutor);
@@ -123,7 +130,8 @@ public class CommandContextInterceptor extends AbstractCommandInterceptor {
                 commandContext.setReused(originalContextReusedState);
 
             } finally {
-                // Pop from stack
+                // Pop from stacks
+                commandContext.popEngineCfgStack();
                 Context.removeCommandContext();
             }
         }
@@ -170,4 +178,10 @@ public class CommandContextInterceptor extends AbstractCommandInterceptor {
         this.engineConfigurations = engineConfigurations;
     }
 
+    public String getEngineCfgKey() {
+        return engineCfgKey;
+    }
+    public void setEngineCfgKey(String engineCfgKey) {
+        this.engineCfgKey = engineCfgKey;
+    }
 }

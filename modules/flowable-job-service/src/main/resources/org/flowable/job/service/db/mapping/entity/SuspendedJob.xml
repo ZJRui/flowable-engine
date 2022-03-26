@@ -256,11 +256,20 @@
             <if test="processInstanceId != null">
                 and RES.PROCESS_INSTANCE_ID_ = #{processInstanceId}
             </if>
+            <if test="withoutProcessInstanceId">
+                and RES.PROCESS_INSTANCE_ID_ IS NULL
+            </if>
             <if test="executionId != null">
                 and RES.EXECUTION_ID_ = #{executionId}
             </if>
             <if test="handlerType != null">
                 and RES.HANDLER_TYPE_ = #{handlerType}
+            </if>
+            <if test="handlerTypes != null">
+                and RES.HANDLER_TYPE_ in
+                <foreach item="item" index="index" collection="handlerTypes" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
             </if>
             <if test="processDefinitionId != null">
                 and RES.PROC_DEF_ID_ = #{processDefinitionId}
@@ -279,6 +288,9 @@
             </if>
             <if test="scopeId != null">
                 and RES.SCOPE_ID_ = #{scopeId}
+            </if>
+            <if test="withoutScopeId">
+                and RES.SCOPE_ID_ IS NULL
             </if>
             <if test="subScopeId != null">
                 and RES.SUB_SCOPE_ID_ = #{subScopeId}

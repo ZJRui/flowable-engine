@@ -102,8 +102,7 @@ public class HistoricPlanItemInstanceResourcesTest extends BaseSpringRestTestCas
         assertThat(planItemInstanceNode.get("state").asText()).isEqualTo(PlanItemInstanceState.AVAILABLE);
 
         //Finish the case
-        runtimeService
-                .triggerPlanItemInstance(runtimeService.createPlanItemInstanceQuery().planItemInstanceElementId("finishCaseEvent").singleResult().getId());
+        runtimeService.triggerPlanItemInstance(runtimeService.createPlanItemInstanceQuery().planItemInstanceElementId("finishCaseEvent").singleResult().getId());
         assertCaseEnded(caseInstance.getId());
 
         httpGet = new HttpGet(SERVER_URL_PREFIX + CmmnRestUrls.createRelativeResourceUrl(CmmnRestUrls.URL_HISTORIC_PLANITEM_INSTANCES));

@@ -42,21 +42,38 @@ public class UnacquireOwnedJobsCmd implements Command<Void> {
         JobQueryImpl jobQuery = new JobQueryImpl(commandContext, jobServiceConfiguration);
         jobQuery.lockOwner(lockOwner);
 
+        // The tenantId is only used if it has been explicitly set
         if (tenantId != null) {
-            jobQuery.jobTenantId(tenantId);
+            if (!tenantId.isEmpty()) {
+                jobQuery.jobTenantId(tenantId);
+            } else {
+                jobQuery.jobWithoutTenantId();
+            }
         }
 
         List<Job> jobs = jobServiceConfiguration.getJobEntityManager().findJobsByQueryCriteria(jobQuery);
         for (Job job : jobs) {
-            logJobUnlocking(job);
-            jobServiceConfiguration.getJobManager().unacquire(job);
+            try {
+                jobServiceConfiguration.getJobManager().unacquire(job);
+                logJobUnlocking(job);
+            } catch (Exception e) {
+                /*
+                 * Not logging the exception. The engine is shutting down, so not much can be done at this point.
+                 *
+                 * Furthermore: some exceptions can be expected here: if the job was picked up and put in the queue when
+                 * the shutdown was triggered, the job can still be executed as the threadpool doesn't shut down immediately.
+                 *
+                 * This would then throw an NPE for data related to the job queried here (e.g. the job itself or related executions).
+                 * That is also why the exception is catched here and not higher-up (e.g. at the flush, but the flush won't be reached for an NPE)
+                 */
+            }
         }
         return null;
     }
 
     protected void logJobUnlocking(Job job) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Unacquiring job {} with owner {} and tenantId {}", job, lockOwner, tenantId);
+            LOGGER.debug("Unacquired job {} with owner {} and tenantId {}", job, lockOwner, tenantId);
         }
     }
 }

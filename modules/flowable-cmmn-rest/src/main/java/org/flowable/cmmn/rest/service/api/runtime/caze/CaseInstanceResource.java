@@ -78,7 +78,7 @@ public class CaseInstanceResource extends BaseCaseInstanceResource {
         return caseInstanceResponse;
     }
     
-    @ApiOperation(value = "Update case instance properties or execute an action on a case instance (body needs to contain an 'action' property for the latter).", tags = { "Plan Item Instances" }, notes = "")
+    @ApiOperation(value = "Update case instance properties or execute an action on a case instance (body needs to contain an 'action' property for the latter).", tags = { "Case Instances" }, notes = "")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Indicates the case instance was found and the action/update is performed."),
             @ApiResponse(code = 204, message = "Indicates the case was found, the change was performed and it caused the case instance to end."),
@@ -186,7 +186,7 @@ public class CaseInstanceResource extends BaseCaseInstanceResource {
             @ApiResponse(code = 200, message = "Indicates the case instance was found and change state activity was executed."),
             @ApiResponse(code = 404, message = "Indicates the requested case instance was not found.")
     })
-    @PostMapping(value = "/runtime/case-instances/{caseInstanceId}/change-state", produces = "application/json")
+    @PostMapping(value = "/cmmn-runtime/case-instances/{caseInstanceId}/change-state", produces = "application/json")
     public void changePlanItemState(@ApiParam(name = "caseInstanceId") @PathVariable String caseInstanceId,
             @RequestBody ChangePlanItemStateRequest planItemStateRequest, HttpServletRequest request) {
         
@@ -221,7 +221,7 @@ public class CaseInstanceResource extends BaseCaseInstanceResource {
             @ApiResponse(code = 409, message = "Indicates the requested case instance action cannot be executed since the case-instance is already activated/suspended."),
             @ApiResponse(code = 404, message = "Indicates the requested case instance was not found.")
     })
-    @PostMapping(value = "/runtime/case-instances/{caseInstanceId}/migrate", produces = "application/json")
+    @PostMapping(value = "/cmmn-runtime/case-instances/{caseInstanceId}/migrate", produces = "application/json")
     public void migrateCaseInstance(@ApiParam(name = "caseInstanceId") @PathVariable String caseInstanceId,
                                        @RequestBody String migrationDocumentJson, HttpServletRequest request) {
 

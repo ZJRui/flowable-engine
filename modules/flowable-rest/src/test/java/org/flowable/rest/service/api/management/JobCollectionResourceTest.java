@@ -19,6 +19,7 @@ import java.util.Calendar;
 import java.util.Collections;
 
 import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.flowable.common.engine.api.FlowableException;
 import org.flowable.engine.impl.cmd.ChangeDeploymentTenantIdCmd;
@@ -28,6 +29,8 @@ import org.flowable.job.api.Job;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
 import org.junit.Test;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Test for all REST-operations related to the Job collection and a single job resource.
@@ -51,6 +54,14 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
         Job timerJob = managementService.createTimerJobQuery().processInstanceId(processInstance.getId()).timers().singleResult();
         assertThat(timerJob).isNotNull();
 
+        CloseableHttpResponse response = executeRequest(
+                new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?id=" + timerJob.getId()), HttpStatus.SC_OK);
+        JsonNode responseNode = objectMapper.readTree(response.getEntity().getContent());
+        closeResponse(response);
+        JsonNode timerJobNode = responseNode.get("data").get(0);
+        assertThat(timerJobNode.get("id").asText()).isEqualTo(timerJob.getId());
+        assertThat(timerJobNode.get("url").asText()).contains("management/timer-jobs/" + timerJob.getId());
+        
         String url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION);
         assertResultsPresentInDataResponse(url, timerJob.getId());
 
@@ -64,6 +75,9 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?processInstanceId=" + processInstance.getId();
         assertResultsPresentInDataResponse(url, timerJob.getId());
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?processInstanceId=" + processInstance.getId() + "xyzzy";
+        assertResultsPresentInDataResponse(url);
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?withoutProcessInstanceId=true";
         assertResultsPresentInDataResponse(url);
 
         // Fetch using executionId
@@ -132,6 +146,9 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
 
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?exceptionMessage=FlowableException";
         assertResultsPresentInDataResponse(url);
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TIMER_JOB_COLLECTION) + "?withoutScopeId=true";
+        assertResultsPresentInDataResponse(url, timerJob.getId());
 
         Job timerJob2 = managementService.createTimerJobQuery().processInstanceId(processInstance.getId()).timers().singleResult();
         for (int i = 0; i < timerJob2.getRetries(); i++) {
@@ -140,7 +157,7 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
                 managementService.moveTimerToExecutableJob(timerJob2.getId());
                 managementService.executeJob(timerJob2.getId());
             })
-                    .isExactlyInstanceOf(FlowableException.class);
+            .isExactlyInstanceOf(FlowableException.class);
         }
 
         timerJob = managementService.createDeadLetterJobQuery().processInstanceId(processInstance.getId()).timers().singleResult();
@@ -154,6 +171,15 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
         assertResultsPresentInDataResponse(url, asyncJob.getId());
 
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_DEADLETTER_JOB_COLLECTION);
+        
+        response = executeRequest(
+                new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_DEADLETTER_JOB_COLLECTION)), HttpStatus.SC_OK);
+        responseNode = objectMapper.readTree(response.getEntity().getContent());
+        closeResponse(response);
+        JsonNode deadletterJobNode = responseNode.get("data").get(0);
+        assertThat(deadletterJobNode.get("id").asText()).isEqualTo(timerJob.getId());
+        assertThat(deadletterJobNode.get("url").asText()).contains("management/deadletter-jobs/" + timerJob.getId());
+        
         assertResultsPresentInDataResponse(url, timerJob.getId());
 
         // Fetch using job-id
@@ -165,6 +191,12 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
         assertResultsPresentInDataResponse(url, asyncJob.getId());
 
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_JOB_COLLECTION) + "?processInstanceId=unexisting";
+        assertResultsPresentInDataResponse(url);
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_JOB_COLLECTION) + "?withoutProcessInstanceId=true";
+        assertResultsPresentInDataResponse(url);
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_DEADLETTER_JOB_COLLECTION) + "?withoutProcessInstanceId=true";
         assertResultsPresentInDataResponse(url);
 
         // Fetch using executionId
@@ -203,6 +235,12 @@ public class JobCollectionResourceTest extends BaseSpringRestTestCase {
         // Fetch using withRetriesLeft
         url = RestUrls.createRelativeResourceUrl(RestUrls.URL_JOB_COLLECTION) + "?withRetriesLeft=true";
         assertResultsPresentInDataResponse(url, asyncJob.getId());
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_JOB_COLLECTION) + "?withoutScopeId=true";
+        assertResultsPresentInDataResponse(url, asyncJob.getId());
+        
+        url = RestUrls.createRelativeResourceUrl(RestUrls.URL_DEADLETTER_JOB_COLLECTION) + "?withoutScopeId=true";
+        assertResultsPresentInDataResponse(url, timerJob.getId());
 
         // Fetch using executable
         // url = RestUrls.createRelativeResourceUrl(RestUrls.URL_JOB_COLLECTION)

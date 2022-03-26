@@ -204,6 +204,9 @@
       <if test="nameLike != null">
         and RES.NAME_ like #{nameLike}${wildcardEscapeClause}
       </if>
+      <if test="nameLikeIgnoreCase != null">
+        and lower(RES.NAME_) like lower(#{nameLikeIgnoreCase}${wildcardEscapeClause})
+      </if>
       <if test="key != null">
         and RES.KEY_ = #{key}
       </if>
@@ -234,11 +237,14 @@
       <if test="deploymentId != null">
         and RES.DEPLOYMENT_ID_ = #{deploymentId}
       </if>
-      <if test="deploymentIds != null and !deploymentIds.isEmpty()">
+      <if test="deploymentIds != null and !deploymentIds.empty">
         and RES.DEPLOYMENT_ID_ in
         <foreach item="item" index="index" collection="deploymentIds" open="(" separator="," close=")">
           #{item}
         </foreach>
+      </if>
+      <if test="parentDeploymentId != null">
+          and EXISTS (select 1 from ${prefix}ACT_CMMN_DEPLOYMENT D where D.PARENT_DEPLOYMENT_ID_ = #{parentDeploymentId} and D.ID_ = RES.DEPLOYMENT_ID_)
       </if>
       <if test="latest">
         and RES.VERSION_ = (select max(VERSION_) from ${prefix}ACT_CMMN_CASEDEF where KEY_ = RES.KEY_ 
@@ -271,7 +277,7 @@
              <if test="authorizationUserId != null">
                  exists (select ID_  from ${prefix}ACT_RU_IDENTITYLINK  IDN where IDN.SCOPE_DEFINITION_ID_ = RES.ID_ and IDN.SCOPE_TYPE_ = 'cmmn' and IDN.USER_ID_ = #{authorizationUserId})
              </if>
-              <if test="authorizationGroups != null &amp;&amp; authorizationGroups.size() &gt; 0">
+              <if test="authorizationGroups != null &amp;&amp; !authorizationGroups.empty">
                   OR exists (select ID_ from ${prefix}ACT_RU_IDENTITYLINK  IDN where IDN.SCOPE_DEFINITION_ID_ = RES.ID_ and IDN.SCOPE_TYPE_ = 'cmmn' and 
                     (
                     <foreach item="authorizationGroupListItem" index="groupIndex" collection="safeAuthorizationGroups">

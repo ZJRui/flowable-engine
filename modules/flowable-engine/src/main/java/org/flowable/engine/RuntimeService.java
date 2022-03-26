@@ -46,6 +46,8 @@ import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.identitylink.api.IdentityLinkType;
 import org.flowable.variable.api.delegate.VariableScope;
 import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.flowable.variable.api.runtime.NativeVariableInstanceQuery;
+import org.flowable.variable.api.runtime.VariableInstanceQuery;
 
 /**
  * @author Tom Baeyens
@@ -424,6 +426,16 @@ public interface RuntimeService {
      *     new businessKey value
      */
     void updateBusinessKey(String processInstanceId, String businessKey);
+    
+    /**
+     * Updates the business status for the provided process instance
+     *
+     * @param processInstanceId
+     *     id of the process instance to set the business status, cannot be null
+     * @param businessStatus
+     *     new business status value
+     */
+    void updateBusinessStatus(String processInstanceId, String businessStatus);
 
     // Identity Links
     // ///////////////////////////////////////////////////////////////
@@ -850,6 +862,16 @@ public interface RuntimeService {
      *     collection containing name of variables to remove.
      */
     void removeVariablesLocal(String executionId, Collection<String> variableNames);
+    
+    /**
+     * Creates a new programmatic query to search for {@link VariableInstance}s.
+     */
+    VariableInstanceQuery createVariableInstanceQuery();
+
+    /**
+     * Returns a new {@link org.flowable.common.engine.api.query.NativeQuery} for variable instances.
+     */
+    NativeVariableInstanceQuery createNativeVariableInstanceQuery();
 
     /**
      * All DataObjects visible from the given execution scope (including parent scopes).

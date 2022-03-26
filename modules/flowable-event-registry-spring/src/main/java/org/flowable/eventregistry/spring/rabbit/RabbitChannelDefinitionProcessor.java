@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.flowable.eventregistry.api.ChannelModelProcessor;
+import org.flowable.eventregistry.api.ChannelProcessingPipelineManager;
 import org.flowable.eventregistry.api.EventRegistry;
 import org.flowable.eventregistry.api.EventRepositoryService;
 import org.flowable.eventregistry.model.ChannelModel;
@@ -60,6 +61,8 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * @author Filip Hrisafov
  */
@@ -80,12 +83,17 @@ public class RabbitChannelDefinitionProcessor implements BeanFactoryAware, Appli
     protected BeanFactory beanFactory;
     protected ApplicationContext applicationContext;
     protected boolean contextRefreshed;
+    protected ObjectMapper objectMapper;
 
     protected BeanExpressionResolver resolver = new StandardBeanExpressionResolver();
 
     protected StringValueResolver embeddedValueResolver;
     protected BeanExpressionContext expressionContext;
 
+    public RabbitChannelDefinitionProcessor(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+    
     @Override
     public boolean canProcess(ChannelModel channelModel) {
         return channelModel instanceof RabbitInboundChannelModel || channelModel instanceof RabbitOutboundChannelModel;
@@ -93,7 +101,8 @@ public class RabbitChannelDefinitionProcessor implements BeanFactoryAware, Appli
 
     @Override
     public void registerChannelModel(ChannelModel channelModel, String tenantId, EventRegistry eventRegistry, 
-                    EventRepositoryService eventRepositoryService, boolean fallbackToDefaultTenant) {
+            EventRepositoryService eventRepositoryService, ChannelProcessingPipelineManager eventSerializerManager, 
+            boolean fallbackToDefaultTenant) {
         
         if (channelModel instanceof RabbitInboundChannelModel) {
             RabbitInboundChannelModel rabbitChannelDefinition = (RabbitInboundChannelModel) channelModel;
@@ -134,8 +143,10 @@ public class RabbitChannelDefinitionProcessor implements BeanFactoryAware, Appli
     protected void processOutboundDefinition(RabbitOutboundChannelModel channelDefinition) {
         String routingKey = channelDefinition.getRoutingKey();
         if (channelDefinition.getOutboundEventChannelAdapter() == null && StringUtils.hasText(routingKey)) {
+            String resolvedRoutingKey = resolve(routingKey);
+            String exchange = resolve(channelDefinition.getExchange());
             channelDefinition
-                .setOutboundEventChannelAdapter(new RabbitOperationsOutboundEventChannelAdapter(rabbitOperations, channelDefinition.getExchange(), routingKey));
+                .setOutboundEventChannelAdapter(new RabbitOperationsOutboundEventChannelAdapter(rabbitOperations, exchange, resolvedRoutingKey));
         }
     }
 
@@ -315,6 +326,7 @@ public class RabbitChannelDefinitionProcessor implements BeanFactoryAware, Appli
         // If we do not do that then it is possible that @RabbitListener will not be started
         // We also need to start immediately if the application context has already been refreshed.
         // If we don't and the endpoint has no registered containers then our endpoint will never be started.
+        // This also makes sure that we are not going to start our listener earlier than the RabbitListenerEndpointRegistry
         boolean startImmediately = contextRefreshed || endpointRegistry.isRunning();
         logger.info("Registering endpoint {} with start immediately {}", endpoint, startImmediately);
         endpointRegistry.registerListenerContainer(endpoint, resolveContainerFactory(endpoint, factory), startImmediately);

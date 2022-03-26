@@ -187,9 +187,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByNameIn() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("testTask");
-        taskNameList.add("gonzoTask");
+        List<String> taskNameList = Arrays.asList("testTask", "gonzoTask");
 
         TaskQuery query = taskService.createTaskQuery().taskNameIn(taskNameList);
         assertThat(query.list()).hasSize(7);
@@ -201,9 +199,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByNameInIgnoreCase() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("testtask");
-        taskNameList.add("gonzotask");
+        List<String> taskNameList = Arrays.asList("testtask", "gonzotask");
 
         TaskQuery query = taskService.createTaskQuery().taskNameInIgnoreCase(taskNameList);
         assertThat(query.list()).hasSize(7);
@@ -215,9 +211,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByNameInOr() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("testTask");
-        taskNameList.add("gonzoTask");
+        List<String> taskNameList = Arrays.asList("testTask", "gonzoTask");
 
         TaskQuery query = taskService.createTaskQuery().or().taskNameIn(taskNameList).taskId("invalid");
         assertThat(query.list()).hasSize(7);
@@ -229,9 +223,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByNameInIgnoreCaseOr() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("testtask");
-        taskNameList.add("gonzotask");
+        List<String> taskNameList = Arrays.asList("testtask", "gonzotask");
 
         TaskQuery query = taskService.createTaskQuery().or().taskNameInIgnoreCase(taskNameList).taskId("invalid");
         assertThat(query.list()).hasSize(7);
@@ -243,8 +235,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByInvalidNameIn() {
-        final List<String> taskNameList = new ArrayList<>(1);
-        taskNameList.add("invalid");
+        List<String> taskNameList = Collections.singletonList("invalid");
 
         TaskQuery query = taskService.createTaskQuery().taskNameIn(taskNameList);
         assertThat(query.list()).isEmpty();
@@ -256,8 +247,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByInvalidNameInIgnoreCase() {
-        final List<String> taskNameList = new ArrayList<>(1);
-        taskNameList.add("invalid");
+        List<String> taskNameList = Collections.singletonList("invalid");
 
         TaskQuery query = taskService.createTaskQuery().taskNameInIgnoreCase(taskNameList);
         assertThat(query.list()).isEmpty();
@@ -269,8 +259,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByInvalidNameInOr() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("invalid");
+        List<String> taskNameList = Collections.singletonList("invalid");
 
         TaskQuery query = taskService.createTaskQuery().or().taskNameIn(taskNameList).taskId("invalid");
         assertThat(query.list()).isEmpty();
@@ -282,8 +271,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     public void testQueryByInvalidNameInIgnoreCaseOr() {
-        final List<String> taskNameList = new ArrayList<>(2);
-        taskNameList.add("invalid");
+        List<String> taskNameList = Collections.singletonList("invalid");
 
         TaskQuery query = taskService.createTaskQuery().or().taskNameInIgnoreCase(taskNameList).taskId("invalid");
         assertThat(query.list()).isEmpty();
@@ -1403,10 +1391,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
         // if dbIdentityUsed set false in process engine configuration of using
         // custom session factory of GroupIdentityManager
-        ArrayList<String> candidateGroups = new ArrayList<>();
-        candidateGroups.add("management");
-        candidateGroups.add("accountancy");
-        candidateGroups.add("noexist");
+        List<String> candidateGroups = Arrays.asList("management", "accountancy", "noexist");
         query = taskService.createTaskQuery().taskCandidateGroupIn(candidateGroups).taskCandidateOrAssigned("kermit");
         assertThat(query.count()).isEqualTo(11);
         tasks = query.list();
@@ -1428,6 +1413,11 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
         assertThat(query.count()).isEqualTo(12);
         tasks = query.list();
         assertThat(tasks).hasSize(12);
+
+        query = taskService.createTaskQuery().taskCandidateOrAssigned("invalid");
+        assertThat(query.count()).isEqualTo(0);
+        tasks = query.list();
+        assertThat(tasks).isEmpty();
 
         // SQL Server has a limit of 2100 on how many parameters a query might have
         int maxGroups = AbstractEngineConfiguration.DATABASE_TYPE_MSSQL.equals(processEngineConfiguration.getDatabaseType()) ? 2050 : 2100;
@@ -1459,10 +1449,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
         // if dbIdentityUsed set false in process engine configuration of using
         // custom session factory of GroupIdentityManager
-        ArrayList<String> candidateGroups = new ArrayList<>();
-        candidateGroups.add("management");
-        candidateGroups.add("accountancy");
-        candidateGroups.add("noexist");
+        List<String> candidateGroups = Arrays.asList("management", "accountancy", "noexist");
         query = taskService.createTaskQuery().or().taskId("invalid").taskCandidateGroupIn(candidateGroups).taskCandidateOrAssigned("kermit");
         assertThat(query.count()).isEqualTo(11);
         tasks = query.list();
@@ -1484,6 +1471,11 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
         assertThat(query.count()).isEqualTo(12);
         tasks = query.list();
         assertThat(tasks).hasSize(12);
+
+        query = taskService.createTaskQuery().or().taskId("invalid").taskCandidateOrAssigned("invalid");
+        assertThat(query.count()).isEqualTo(0);
+        tasks = query.list();
+        assertThat(tasks).isEmpty();
 
         // SQL Server has a limit of 2100 on how many parameters a query might have
         int maxGroups = AbstractEngineConfiguration.DATABASE_TYPE_MSSQL.equals(processEngineConfiguration.getDatabaseType()) ? 2050 : 2100;
@@ -2356,7 +2348,7 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
 
     @Test
     @Deployment(resources = { "org/flowable/engine/test/api/task/TaskQueryTest.testProcessVariableValueEquals.bpmn20.xml" })
-    public void testProcessVariableValueEqualsOn() throws Exception {
+    public void testProcessVariableValueEqualsOr() throws Exception {
         Map<String, Object> variables = new HashMap<>();
         variables.put("longVar", 928374L);
         variables.put("shortVar", (short) 123);
@@ -2643,12 +2635,12 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
     @Deployment(resources = { "org/flowable/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml" })
     public void testProcessDefinitionKeyIn() throws Exception {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        List<String> includeIds = new ArrayList<>();
+        List<String> includeIds = Collections.emptyList();
 
         assertThat(taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count()).isEqualTo(13);
-        includeIds.add("unexisting");
+        includeIds = Collections.singletonList("unexisting");
         assertThat(taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count()).isZero();
-        includeIds.add("oneTaskProcess");
+        includeIds = Arrays.asList("unexisting", "oneTaskProcess");
         assertThat(taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count()).isEqualTo(1);
     }
 
@@ -2657,19 +2649,19 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
     public void testProcessDefinitionKeyInOr() throws Exception {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        List<String> includeIds = new ArrayList<>();
+        List<String> includeIds = Collections.emptyList();
         assertThat(taskService.createTaskQuery()
                 .or().taskId("invalid")
                 .processDefinitionKeyIn(includeIds)
                 .count()).isZero();
 
-        includeIds.add("unexisting");
+        includeIds = Collections.singletonList("unexisting");
         assertThat(taskService.createTaskQuery()
                 .or().taskId("invalid")
                 .processDefinitionKeyIn(includeIds)
                 .count()).isZero();
 
-        includeIds.add("oneTaskProcess");
+        includeIds = Arrays.asList("unexisting", "oneTaskProcess");
         assertThat(taskService.createTaskQuery()
                 .or().taskId("invalid")
                 .processDefinitionKeyIn(includeIds)
@@ -2825,6 +2817,15 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
                 .processInstanceIdIn(Arrays.asList(processInstance1.getId(), processInstance2.getId(), "unexisting")).count()).isEqualTo(2);
 
         assertThat(taskService.createTaskQuery().or().taskId("invalid").processInstanceIdIn(Arrays.asList("unexisting1", "unexisting2")).count()).isZero();
+    }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml" })
+    public void testWithoutProcessInstanceId() throws Exception {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstance.getId()).count()).isEqualTo(1);
+        assertThat(taskService.createTaskQuery().withoutProcessInstanceId().count()).isEqualTo(12);
     }
 
     @Test
@@ -3768,17 +3769,15 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
     public void testQueryByDeploymentIdIn() throws Exception {
         org.flowable.engine.repository.Deployment deployment = repositoryService.createDeploymentQuery().singleResult();
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        List<String> deploymentIds = new ArrayList<>();
-        deploymentIds.add(deployment.getId());
+        List<String> deploymentIds = Collections.singletonList(deployment.getId());
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).singleResult()).isNotNull();
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).count()).isEqualTo(1);
 
-        deploymentIds.add("invalid");
+        deploymentIds = Arrays.asList(deployment.getId(), "invalid");
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).singleResult()).isNotNull();
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).count()).isEqualTo(1);
 
-        deploymentIds = new ArrayList<>();
-        deploymentIds.add("invalid");
+        deploymentIds = Collections.singletonList("invalid");
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).singleResult()).isNull();
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).count()).isZero();
     }
@@ -3788,21 +3787,28 @@ public class TaskQueryTest extends PluggableFlowableTestCase {
     public void testQueryByDeploymentIdInOr() throws Exception {
         org.flowable.engine.repository.Deployment deployment = repositoryService.createDeploymentQuery().singleResult();
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        List<String> deploymentIds = new ArrayList<>();
-        deploymentIds.add(deployment.getId());
+        List<String> deploymentIds = Collections.singletonList(deployment.getId());
         assertThat(taskService.createTaskQuery().or().taskId("invalid").deploymentIdIn(deploymentIds).singleResult()).isNotNull();
 
         assertThat(taskService.createTaskQuery().or().taskId("invalid").deploymentIdIn(deploymentIds).count()).isEqualTo(1);
 
-        deploymentIds.add("invalid");
+        deploymentIds = Arrays.asList(deployment.getId(), "invalid");
         assertThat(taskService.createTaskQuery().or().taskId("invalid").deploymentIdIn(deploymentIds).singleResult()).isNotNull();
 
         assertThat(taskService.createTaskQuery().or().taskId("invalid").deploymentIdIn(deploymentIds).count()).isEqualTo(1);
 
-        deploymentIds = new ArrayList<>();
-        deploymentIds.add("invalid");
+        deploymentIds = Collections.singletonList("invalid");
         assertThat(taskService.createTaskQuery().deploymentIdIn(deploymentIds).singleResult()).isNull();
         assertThat(taskService.createTaskQuery().or().taskId("invalid").deploymentIdIn(deploymentIds).count()).isZero();
+    }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml" })
+    public void testWithoutScopeId() throws Exception {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+
+        assertThat(taskService.createTaskQuery().withoutScopeId().count()).isEqualTo(13);
+        assertThat(taskService.createTaskQuery().processInstanceId(processInstance.getId()).withoutScopeId().count()).isEqualTo(1);
     }
 
     @Test

@@ -32,8 +32,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
+import org.flowable.cmmn.api.history.HistoricCaseInstance;
 import org.flowable.cmmn.api.runtime.CaseInstance;
 import org.flowable.cmmn.api.runtime.CaseInstanceQuery;
+import org.flowable.cmmn.engine.CaseLocalizationManager;
 import org.flowable.cmmn.engine.impl.runtime.CaseInstanceQueryImpl;
 import org.flowable.cmmn.engine.test.CmmnDeployment;
 import org.flowable.cmmn.engine.test.FlowableCmmnTestCase;
@@ -281,6 +283,38 @@ public class CaseInstanceQueryImplTest extends FlowableCmmnTestCase {
                 .caseDefinitionId("undefined")
                 .endOr()
                 .singleResult().getId()).isEqualTo(caseInstance.getId());
+    }
+    
+    @Test
+    public void getCaseInstanceByBusinessStatus() {
+        CaseInstance caseInstance = cmmnRuntimeService.createCaseInstanceBuilder()
+                .caseDefinitionKey("oneTaskCase")
+                .start();
+        
+        cmmnRuntimeService.updateBusinessStatus(caseInstance.getId(), "businessStatus");
+
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery().caseInstanceBusinessStatus("businessStatus").count()).isEqualTo(1);
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery().caseInstanceBusinessStatus("businessStatus").list().get(0).getId()).isEqualTo(caseInstance.getId());
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery().caseInstanceBusinessStatus("businessStatus").singleResult().getId()).isEqualTo(caseInstance.getId());
+
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery()
+                .or()
+                .caseInstanceBusinessStatus("businessStatus")
+                .caseDefinitionName("undefinedId")
+                .endOr()
+                .count()).isEqualTo(1);
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery()
+                .or()
+                .caseInstanceBusinessStatus("businessStatus")
+                .caseDefinitionName("undefinedId")
+                .endOr()
+                .list().get(0).getId()).isEqualTo(caseInstance.getId());
+        assertThat(cmmnRuntimeService.createCaseInstanceQuery()
+                .or()
+                .caseInstanceBusinessStatus("undefined")
+                .caseDefinitionId("undefined")
+                .endOr()
+                .singleResult()).isNull();
     }
 
     @Test
@@ -1284,6 +1318,34 @@ public class CaseInstanceQueryImplTest extends FlowableCmmnTestCase {
 
         caseInstance = cmmnRuntimeService.createCaseInstanceQuery().variableValueEquals(twoYearsLater).singleResult();
         Assertions.assertThat(caseInstance).isNull();
+    }
+
+    @Test
+    public void testLocalization() {
+        CaseInstance createdCase = cmmnRuntimeService.createCaseInstanceBuilder()
+                .caseDefinitionKey("myCase")
+                .name("Default name")
+                .start();
+
+        cmmnEngineConfiguration.setCaseLocalizationManager(new CaseLocalizationManager() {
+            @Override
+            public void localize(CaseInstance caseInstance, String locale, boolean withLocalizationFallback) {
+                if ("pt".equals(locale)) {
+                    caseInstance.setLocalizedName("Caso 1");
+                }
+            }
+
+            @Override
+            public void localize(HistoricCaseInstance historicCaseInstance, String locale, boolean withLocalizationFallback) {
+
+            }
+        });
+
+        CaseInstance caseInstance = cmmnRuntimeService.createCaseInstanceQuery().caseInstanceId(createdCase.getId()).singleResult();
+        assertThat(caseInstance.getName()).isEqualTo("Default name");
+
+        caseInstance = cmmnRuntimeService.createCaseInstanceQuery().caseInstanceId(createdCase.getId()).locale("pt").singleResult();
+        assertThat(caseInstance.getName()).isEqualTo("Caso 1");
     }
 
     @Test

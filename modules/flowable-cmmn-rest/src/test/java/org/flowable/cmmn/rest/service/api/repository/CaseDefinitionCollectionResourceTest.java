@@ -40,12 +40,14 @@ public class CaseDefinitionCollectionResourceTest extends BaseSpringRestTestCase
 
         try {
             CmmnDeployment firstDeployment = repositoryService.createDeployment().name("Deployment 1")
+                    .parentDeploymentId("parent1")
                     .addClasspathResource("org/flowable/cmmn/rest/service/api/repository/oneHumanTaskCase.cmmn").deploy();
 
             CaseDefinition firstOneTaskCase = repositoryService.createCaseDefinitionQuery().caseDefinitionKey("oneHumanTaskCase")
                     .deploymentId(firstDeployment.getId()).singleResult();
 
             CmmnDeployment secondDeployment = repositoryService.createDeployment().name("Deployment 2")
+                    .parentDeploymentId("parent2")
                     .addClasspathResource("org/flowable/cmmn/rest/service/api/repository/oneHumanTaskCase.cmmn")
                     .addClasspathResource("org/flowable/cmmn/rest/service/api/repository/simpleCase.cmmn").deploy();
 
@@ -94,6 +96,10 @@ public class CaseDefinitionCollectionResourceTest extends BaseSpringRestTestCase
             url = baseUrl + "?nameLike=" + encode("Repeating%");
             assertResultsPresentInDataResponse(url, repeatingStageCase.getId());
 
+            // Test nameLikeIgnoreCase filtering
+            url = baseUrl + "?nameLikeIgnoreCase=" + encode("REPEATING%");
+            assertResultsPresentInDataResponse(url, repeatingStageCase.getId());
+
             // Test key filtering
             url = baseUrl + "?key=testRepeatingStage";
             assertResultsPresentInDataResponse(url, repeatingStageCase.getId());
@@ -139,6 +145,14 @@ public class CaseDefinitionCollectionResourceTest extends BaseSpringRestTestCase
             // Test deploymentId
             url = baseUrl + "?deploymentId=" + secondDeployment.getId();
             assertResultsPresentInDataResponse(url, simpleCaseDef.getId(), oneTaskCase.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent2";
+            assertResultsPresentInDataResponse(url, simpleCaseDef.getId(), oneTaskCase.getId());
+
+            // Test parentDeploymentId
+            url = baseUrl + "?parentDeploymentId=parent1";
+            assertResultsPresentInDataResponse(url, firstOneTaskCase.getId());
 
         } finally {
             // Always cleanup any created deployments, even if the test failed
