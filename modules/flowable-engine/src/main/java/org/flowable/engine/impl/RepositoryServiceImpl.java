@@ -85,6 +85,16 @@ import org.flowable.validation.ValidationError;
  */
 public class RepositoryServiceImpl extends CommonEngineServiceImpl<ProcessEngineConfigurationImpl> implements RepositoryService {
 
+    /**
+     *       //部署流程 bpmnSource是xml文件内容
+     *         Deployment deployment = repositoryService.createDeployment().addString(workflowName + ".bpmn20.xml", bpmnSource).deploy();
+     *         ProcessDefinitionQuery pdq = repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId());
+     *         ProcessDefinition processDefinition = pdq.singleResult();
+     *         processDefinition.getId();
+     *
+     *
+     * @return
+     */
     @Override
     public DeploymentBuilder createDeployment() {
         return commandExecutor.execute(new Command<DeploymentBuilder>() {

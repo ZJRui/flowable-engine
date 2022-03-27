@@ -1185,6 +1185,7 @@
 		<module>modules/flowable-app-engine</module>
 		<module>modules/flowable-spring-security</module>
         <module>modules/flowable-http-common</module>
+        <module>sachin-floable-learn</module>
     </modules>
 
 	<build>

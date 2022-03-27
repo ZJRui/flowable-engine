@@ -61,6 +61,9 @@ public class DbSqlSessionFactory implements SessionFactory {
         databaseSpecificLimitBetweenStatements.put("mysql", "");
         databaseOuterJoinLimitBetweenStatements.put("mysql", "");
         databaseSpecificOrderByStatements.put("mysql", defaultOrderBy);
+        /**
+         * selectProcessDefinitionsByQueryCriteria_mysql  对应着mapper.xml文件中的 id，
+         */
         addDatabaseSpecificStatement("mysql", "selectProcessDefinitionsByQueryCriteria", "selectProcessDefinitionsByQueryCriteria_mysql");
         addDatabaseSpecificStatement("mysql", "selectProcessDefinitionCountByQueryCriteria", "selectProcessDefinitionCountByQueryCriteria_mysql");
         addDatabaseSpecificStatement("mysql", "selectDeploymentsByQueryCriteria", "selectDeploymentsByQueryCriteria_mysql");

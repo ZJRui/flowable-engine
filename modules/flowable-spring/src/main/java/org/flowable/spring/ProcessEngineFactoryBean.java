@@ -48,6 +48,13 @@ public class ProcessEngineFactoryBean implements FactoryBean<ProcessEngine>, Dis
         this.applicationContext = applicationContext;
     }
 
+    /**
+     *
+     * 这个方法是启动入口点 flowable流程引擎在Spring环境中的启动源码分析
+     *
+     * @return
+     * @throws Exception
+     */
     @Override
     public ProcessEngine getObject() throws Exception {
         configureExternallyManagedTransactions();
@@ -56,6 +63,15 @@ public class ProcessEngineFactoryBean implements FactoryBean<ProcessEngine>, Dis
             processEngineConfiguration.setBeans(new SpringBeanFactoryProxyMap(applicationContext));
         }
 
+        /**
+         * Spring 容器的配置文件中会配置一个  ProcessEngineFactoryBean
+         *
+         *    <bean id="processEngine" lazy-init="true" class="org.flowable.spring.ProcessEngineFactoryBean">
+         *         <property name="processEngineConfiguration" ref="processEngineConfiguration"/>
+         *     </bean>
+         *
+         *
+         */
         this.processEngine = processEngineConfiguration.buildProcessEngine();
         return this.processEngine;
     }

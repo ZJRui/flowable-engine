@@ -59,12 +59,26 @@ public class LoggingSessionUtil {
         loggingNode.put("message", message);
         addLoggingData(type, loggingNode, engineType);
     }
-    
+
+    /**
+     *
+     * CommandContextInterceptor.execute 会执行CommandContext.close ,在finally中会执行 CommandContext.executeCloseListenersClose
+     *
+     * LoggingSessionCommandContextCloseListener的close方法执行，然后执行 这里的addEngineLoggingData
+     *
+     * @param type
+     * @param message
+     * @param engineType
+     * @param objectMapper
+     */
     public static void addEngineLoggingData(String type, String message, String engineType, ObjectMapper objectMapper) {
         ObjectNode loggingNode = objectMapper.createObjectNode();
         loggingNode.put("message", message);
         loggingNode.put("engineType", engineType);
-        
+
+        /**
+         * 这个地方
+         */
         LoggingSession loggingSession = Context.getCommandContext().getSession(LoggingSession.class);
         List<ObjectNode> loggingData = loggingSession.getLoggingData();
         if (loggingData != null) {

@@ -26,6 +26,15 @@ import org.flowable.common.engine.impl.interceptor.CommandInterceptor;
 public class CommandExecutorImpl implements CommandExecutor {
 
     protected CommandConfig defaultConfig;
+    /**
+     * 顺序
+     *      * CommandExecutorImpl对象中的first属性 LogInterceptor
+     *      * SpringTransactionInterceptor
+     *      * CommandContextInterceptor
+     *      * TransactionContextInterceptor
+     *      * BpmnOverrideContextInterceptor
+     *      * CommandInvoker
+     */
     protected CommandInterceptor first;
 
     public CommandExecutorImpl(CommandConfig defaultConfig, CommandInterceptor first) {

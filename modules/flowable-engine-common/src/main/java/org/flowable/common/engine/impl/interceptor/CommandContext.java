@@ -273,10 +273,23 @@ public class CommandContext {
     public <T> T getSession(Class<T> sessionClass) {
         Session session = sessions.get(sessionClass);
         if (session == null) {
+            /**
+             * 这个sessionFactories 是在
+             * org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl#initSessionFactories() 方法中创建的
+             *
+             * Context.getCommandContext().getSession(VariableListenerSession.class);
+             * Context.getCommandContext().getSession(EntityManagerSession.class);
+             *  Context.getCommandContext().getSession(LoggingSession.class);
+             *
+             */
             SessionFactory sessionFactory = sessionFactories.get(sessionClass);
             if (sessionFactory == null) {
                 throw new FlowableException("no session factory configured for " + sessionClass.getName());
             }
+            /**
+             *  getSession方法的含义是 你给我一个class，然后我返回一个该类型的对象。 关键是这个 对象 是通过  openSession 方法得到的，
+             *  儿子而这个openSession方法返回的是Session对象，  那么也就是说  这个session对象被强制转换为指定类型的对象
+             */
             session = sessionFactory.openSession(this);
             sessions.put(sessionClass, session);
         }

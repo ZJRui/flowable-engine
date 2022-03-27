@@ -32,6 +32,9 @@ import org.flowable.common.engine.impl.interceptor.CommandContext;
 public class EntityManagerSessionImpl implements EntityManagerSession {
 
     private EntityManagerFactory entityManagerFactory;
+    /**
+     * Jpa的EntityManager
+     */
     private EntityManager entityManager;
     private boolean handleTransactions;
     private boolean closeEntityManager;

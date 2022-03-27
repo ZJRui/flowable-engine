@@ -55,6 +55,24 @@ public class CommandContextInterceptor extends AbstractCommandInterceptor {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 顺序
+     * CommandExecutorImpl对象中的first属性 LogInterceptor
+     * SpringTransactionInterceptor
+     * CommandContextInterceptor
+     * TransactionContextInterceptor
+     * BpmnOverrideContextInterceptor
+     * CommandInvoker
+     *
+     *
+     *
+     * @param config
+     * @param command
+     * @param commandExecutor
+     * @param <T>
+     * @return
+     */
+
     @Override
     public <T> T execute(CommandConfig config, Command<T> command, CommandExecutor commandExecutor) {
         CommandContext commandContext = Context.getCommandContext();

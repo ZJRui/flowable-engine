@@ -37,6 +37,10 @@ import org.flowable.common.engine.impl.persistence.entity.Entity;
  */
 public class DbSqlSessionFactory implements SessionFactory {
 
+    /**
+     * key是dataBaseType
+     * Value是map， map的key是 insertDeployment ，map的value是 具体的sql
+     */
     protected Map<String, Map<String, String>> databaseSpecificStatements = new HashMap<>();
 
     protected String databaseType;
@@ -45,6 +49,16 @@ public class DbSqlSessionFactory implements SessionFactory {
 
     protected String databaseCatalog;
     protected String databaseSchema;
+    /**
+     * 在 ProcessEngineConfigurationImpl.buildProcessEngine的时候 会执行 ProcessEngineConfigurationImpl的init方法，然后执行
+     * AbstractEngineConfiguration的initSqlSessionFactory  在这个init过程中 会创建DefaultSqlSessionFactory
+     *
+     *  sqlSessionFactory = new DefaultSqlSessionFactory(configuration);
+     *
+     * 然后将这个DefaultSqlSessionFactory设置到DbSqlSessionFactory中
+     *  dbSqlSessionFactory.setSqlSessionFactory(sqlSessionFactory);
+     *
+     */
     protected SqlSessionFactory sqlSessionFactory;
     protected Map<String, String> statementMappings;
 
@@ -78,6 +92,9 @@ public class DbSqlSessionFactory implements SessionFactory {
 
     @Override
     public Session openSession(CommandContext commandContext) {
+        /**
+         *
+         */
         DbSqlSession dbSqlSession = createDbSqlSession();
         if (getDatabaseSchema() != null && getDatabaseSchema().length() > 0) {
             try {
@@ -100,6 +117,15 @@ public class DbSqlSessionFactory implements SessionFactory {
     }
 
     protected DbSqlSession createDbSqlSession() {
+        /**
+         * 问题， DbSqlSession的第二个参数是EntityCache ，这个有什么用？ 是用来缓存对象的。
+         *
+         * 问题： Context.getCommandContext().getSession   为什么CommandContext会有getSessioin这种方法？
+         * Context.getCommandContext().getSession(VariableListenerSession.class);
+         *  Context.getCommandContext().getSession(EntityManagerSession.class);
+         * Context.getCommandContext().getSession(LoggingSession.class);
+         *
+         */
         return new DbSqlSession(this, Context.getCommandContext().getSession(EntityCache.class));
     }
 
@@ -131,6 +157,11 @@ public class DbSqlSessionFactory implements SessionFactory {
         if (statement != null) {
             return statement;
         }
+        /**
+         *
+         * insertDeployment,  前缀加上实体类的名字 作为 map.xml文件中的id
+         *
+         */
         statement = prefix + entityClass.getSimpleName();
         if (statement.endsWith("Impl")) {
             statement = statement.substring(0, statement.length() - 10); // removing 'entityImpl'

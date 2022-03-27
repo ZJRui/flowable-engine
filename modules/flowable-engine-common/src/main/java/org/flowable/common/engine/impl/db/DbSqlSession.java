@@ -49,6 +49,9 @@ public class DbSqlSession implements Session {
     public static String[] JDBC_METADATA_TABLE_TYPES = { "TABLE" };
 
     protected EntityCache entityCache;
+    /**
+     * mybatis的session
+     */
     protected SqlSession sqlSession;
     protected DbSqlSessionFactory dbSqlSessionFactory;
     protected String connectionMetadataDefaultCatalog;
@@ -62,6 +65,9 @@ public class DbSqlSession implements Session {
     public DbSqlSession(DbSqlSessionFactory dbSqlSessionFactory, EntityCache entityCache) {
         this.dbSqlSessionFactory = dbSqlSessionFactory;
         this.entityCache = entityCache;
+        /**
+         * Mybatis的sqlSession
+         */
         this.sqlSession = dbSqlSessionFactory.getSqlSessionFactory().openSession();
     }
 
@@ -75,6 +81,23 @@ public class DbSqlSession implements Session {
 
     // insert ///////////////////////////////////////////////////////////////////
 
+    /**
+     * 在DbSqlSession的insert 方法中 我们并没有看到 实际将数据保存到数据库的操作，而insert仅仅是将数据缓存到了 insertObject 这个map中。
+     * 那么数据是什么时候 真正被保存到了数据库中的呢？
+     * 在 CommandContextInterceptor#execute() 方法中的finally块中会执行 CommandContext.close方法，这个close方法会执行 CommandContext.flushSessions
+     *
+     * protected void flushSessions() {
+     *         for (Session session : sessions.values()) {
+     *             session.flush();
+     *         }
+     *     }
+     *  也就是CommandContext中保存了 DbSqlSession对象，然后关闭的时候调用DbSqlSession对象的flush方法，在fulsh方法中将数据insert到数据库中
+     *
+     *
+     *
+     * @param entity
+     * @param idGenerator
+     */
     public void insert(Entity entity, IdGenerator idGenerator) {
         if (entity.getId() == null) {
             String id = idGenerator.getNextId();
@@ -351,6 +374,19 @@ public class DbSqlSession implements Session {
     // flush
     // ////////////////////////////////////////////////////////////////////
 
+    /**
+     * 在DbSqlSession的insert 方法中 我们并没有看到 实际将数据保存到数据库的操作，而insert仅仅是将数据缓存到了 insertObject 这个map中。
+     * 那么数据是什么时候 真正被保存到了数据库中的呢？
+     * 在 CommandContextInterceptor#execute() 方法中的finally块中会执行 CommandContext.close方法，这个close方法会执行 CommandContext.flushSessions
+     *
+     * protected void flushSessions() {
+     *         for (Session session : sessions.values()) {
+     *             session.flush();
+     *         }
+     *     }
+     *  也就是CommandContext中保存了 DbSqlSession对象，然后关闭的时候调用DbSqlSession对象的flush方法，在fulsh方法中将数据insert到数据库中
+     */
+
     @Override
     public void flush() {
         determineUpdatedObjects(); // Needs to be done before the removeUnnecessaryOperations, as removeUnnecessaryOperations will remove stuff from the cache
@@ -503,6 +539,9 @@ public class DbSqlSession implements Session {
     }
 
     protected void flushRegularInsert(Entity entity, Class<? extends Entity> clazz) {
+        /**
+         *如果entiy是Deployment，那么  insertStatement就是 insertDeployment，对应着Deployment.xml文件中的insert
+         */
         String insertStatement = dbSqlSessionFactory.getInsertStatement(entity);
         insertStatement = dbSqlSessionFactory.mapStatement(insertStatement);
 
@@ -511,6 +550,11 @@ public class DbSqlSession implements Session {
         }
 
         LOGGER.debug("inserting: {}", entity);
+        /**
+         *sqlSession的insert方法接收的第一个参数 是 mapper.xml文件中的sql的id
+         * Mybatis内部会根据sqlid寻找对应的 sql
+         *
+         */
         sqlSession.insert(insertStatement, entity);
 
         // See https://activiti.atlassian.net/browse/ACT-1290

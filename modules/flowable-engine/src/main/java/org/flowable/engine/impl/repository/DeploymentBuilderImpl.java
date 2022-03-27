@@ -57,6 +57,9 @@ public class DeploymentBuilderImpl implements DeploymentBuilder, Serializable {
 
     public DeploymentBuilderImpl(RepositoryServiceImpl repositoryService) {
         this.repositoryService = repositoryService;
+        /**
+         * 数据库中创建记录对象
+         */
         this.deployment = CommandContextUtil.getProcessEngineConfiguration().getDeploymentEntityManager().create();
         this.resourceEntityManager = CommandContextUtil.getProcessEngineConfiguration().getResourceEntityManager();
     }
@@ -88,6 +91,9 @@ public class DeploymentBuilderImpl implements DeploymentBuilder, Serializable {
         if (text == null) {
             throw new FlowableIllegalArgumentException("text is null");
         }
+        /**
+         * 创建代表  xml文件的资源对象
+         */
         ResourceEntity resource = resourceEntityManager.create();
         resource.setName(resourceName);
         try {

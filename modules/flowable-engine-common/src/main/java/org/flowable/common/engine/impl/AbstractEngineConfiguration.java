@@ -598,10 +598,23 @@ public abstract class AbstractEngineConfiguration {
             if (customPreCommandInterceptors != null) {
                 commandInterceptors.addAll(customPreCommandInterceptors);
             }
+            /**
+             * 这个初始化的内容就是在用来初始化调用责任链的，
+             */
             commandInterceptors.addAll(getDefaultCommandInterceptors());
             if (customPostCommandInterceptors != null) {
                 commandInterceptors.addAll(customPostCommandInterceptors);
             }
+            /**
+             * 注意这个地方 将 commandInvoker对象 添加到了最后面。
+             *
+             * CommandInvoker 作为调用链中最后一个Command 因此在CommandInvoker对象中 就会执行目标Command对象的execute方法。
+             *
+             * 你像TransactionContextInterceptor LogInterceptor这种Command ，他们本身有自己的业务逻辑，因此他们执行之后就会执行nextCommand的execute
+             *
+             * CommandInvoker本身没有业务逻辑，他主要负责调用目标Command对象的execute方法。
+             *
+             */
             commandInterceptors.add(commandInvoker);
         }
     }
@@ -732,6 +745,16 @@ public abstract class AbstractEngineConfiguration {
     // /////////////////////////////////////////////////////////////////
 
     protected void initService(Object service) {
+        /**
+         * 用来初始化flowable中的几大核心Service的，将commandExecutor赋给它的成员变量，
+         * 而commandExecutor又包含调用责任链的内容，所以在核心Service中的实现中都是这样的代码:
+         *
+         * RuntimeService的方法  都是交给 commandExecutor执行，同时传递一个目标Command对象（StartProcessInstanceCmd）
+         *   public ProcessInstance startProcessInstanceByKey(String processDefinitionKey) {
+         *         return commandExecutor.execute(new StartProcessInstanceCmd<ProcessInstance>(processDefinitionKey, null, null, null));
+         *     }
+         *
+         */
         if (service instanceof CommonEngineServiceImpl) {
             ((CommonEngineServiceImpl) service).setCommandExecutor(commandExecutor);
         }
